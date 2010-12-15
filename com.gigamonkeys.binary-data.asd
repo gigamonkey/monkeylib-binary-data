@@ -2,7 +2,8 @@
 ;; Copyright (c) 2005-2010, Peter Seibel. All rights reserved.
 ;;
 
-(defsystem com.gigamonkeys.binary-data
+(asdf:defsystem com.gigamonkeys.binary-data
+  :name "binary-data"
   :author "Peter Seibel <peter@gigamonkeys.com>"
   :components
   ((:file "packages")
