@@ -5,7 +5,8 @@
 (in-package :cl-user)
 
 (defpackage :com.gigamonkeys.binary-data
-  (:use :common-lisp :com.gigamonkeys.macro-utilities)
+  (:use :common-lisp :alexandria)
+  (:nicknames :binary-data)
   (:export :define-binary-class
            :define-tagged-binary-class
            :define-binary-type
