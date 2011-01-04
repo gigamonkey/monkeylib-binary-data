@@ -36,7 +36,7 @@
 
 (defmacro define-binary-type (name (&rest args) &body spec)
   (with-gensyms (type stream value)
-  `(progn
+  `(eval-when (:compile-toplevel :load-toplevel :execute)
     (defmethod read-value ((,type (eql ',name)) ,stream &key ,@args)
       (declare (ignorable ,@args))
       ,(type-reader-body spec stream))
