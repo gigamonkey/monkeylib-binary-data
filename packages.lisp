@@ -17,7 +17,9 @@
            :parent-of-type
            :immediate-parent
            :current-binary-object
-           :+null+))
+           :+null+
+           :read-object
+           :write-object))
 
 (defpackage :com.gigamonkeys.binary-data.common-datatypes
   (:use :common-lisp :com.gigamonkeys.binary-data)
