@@ -14,6 +14,10 @@
 (defgeneric write-value (type stream value &key)
   (:documentation "Write a value as the given type to the stream."))
 
+(defgeneric object-size (object &key)
+  (:method-combination +)
+  (:documentation "Returns the byte size of an object."))
+
 (defgeneric read-object (object stream)
   (:method-combination progn :most-specific-last)
   (:documentation "Fill in the slots of object from stream."))
@@ -31,7 +35,6 @@
   (assert (typep value type))
   (write-object value stream))
 
-
 ;;; Binary types
 
 (defmacro define-binary-type (name (&rest args) &body spec)
@@ -42,13 +45,16 @@
       ,(type-reader-body spec stream))
     (defmethod write-value ((,type (eql ',name)) ,stream ,value &key ,@args)
       (declare (ignorable ,@args))
-      ,(type-writer-body spec stream value)))))
+      ,(type-writer-body spec stream value))
+    (defmethod object-size + ((,type (eql ',name)) &key ,@args)
+      (declare (ignorable ,@args))
+      ,(type-size-body spec type)))))
 
 (defun type-reader-body (spec stream)
   (ecase (length spec)
     (1 (destructuring-bind (type &rest args) (mklist (first spec))
          `(read-value ',type ,stream ,@args)))
-    (2 (destructuring-bind ((in) &body body)
+    (3 (destructuring-bind ((in) &body body)
            (cdr (or (assoc :reader spec)
                     (error "No reader found in ~s" spec)))
          `(let ((,in ,stream)) ,@body)))))
@@ -57,10 +63,19 @@
   (ecase (length spec)
     (1 (destructuring-bind (type &rest args) (mklist (first spec))
          `(write-value ',type ,stream ,value ,@args)))
-    (2 (destructuring-bind ((out v) &body body)
+    (3 (destructuring-bind ((out v) &body body)
            (cdr (or (assoc :writer spec)
                     (error "No :writer found in ~s" spec)))
          `(let ((,out ,stream) (,v ,value)) ,@body)))))
+
+(defun type-size-body (spec value)
+  (ecase (length spec)
+    (1 (destructuring-bind (type &rest args) (mklist (first spec))
+	 `(object-size ',type ,@args)))
+    (3 (destructuring-bind (nil &body body)
+	   (cdr (or (assoc :size spec)
+		    (error "No :size found in ~s" spec)))
+	 `(progn ,@body)))))
 
 ;;; Enumerations
 
@@ -98,12 +113,12 @@
        (eval-when (:compile-toplevel :load-toplevel :execute)
          (setf (get ',name 'slots) ',(mapcar #'first slots))
          (setf (get ',name 'superclasses) ',superclasses))
-       
+
        (defclass ,name ,superclasses
          ,(mapcar #'slot->defclass-slot slots))
-       
+
        ,read-method
-       
+
        (defmethod write-object progn ((,objectvar ,name) ,streamvar)
          (declare (ignorable ,streamvar))
          (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
@@ -141,7 +156,7 @@
       (defmethod read-value ((,typevar (eql ',name)) ,streamvar &key)
         (let* ,(mapcar #'(lambda (x) (slot->binding x streamvar)) slots)
           (let ((,objectvar
-                 (make-instance 
+                 (make-instance
                   ,@(or (cdr (assoc :dispatch options))
                         (error "No :dispatch form found in ~s" whole))
                   ,@(mapcan #'slot->keyword-arg slots))))
@@ -213,4 +228,3 @@ and superclasses have been saved."
   (declare (ignore stream))
   (let ((*in-progress-objects* (cons object *in-progress-objects*)))
     (call-next-method)))
-
