@@ -13,6 +13,7 @@
 	   :define-enumeration
            :read-value
            :write-value
+	   :type-size
 	   :object-size
            :*in-progress-objects*
            :parent-of-type

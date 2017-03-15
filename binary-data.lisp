@@ -14,9 +14,8 @@
 (defgeneric write-value (type stream value &key)
   (:documentation "Write a value as the given type to the stream."))
 
-(defgeneric object-size (object &key)
-  (:method-combination +)
-  (:documentation "Returns the byte size of an object."))
+(defgeneric type-size (type &key)
+  (:documentation "Returns the byte size of a type."))
 
 (defgeneric read-object (object stream)
   (:method-combination progn :most-specific-last)
@@ -26,6 +25,10 @@
   (:method-combination progn :most-specific-last)
   (:documentation "Write out the slots of object to the stream."))
 
+(defgeneric object-size (object)
+  (:method-combination +)
+  (:documentation "Returns the byte size of an object."))
+
 (defmethod read-value ((type symbol) stream &key)
   (let ((object (make-instance type)))
     (read-object object stream)
@@ -34,6 +37,11 @@
 (defmethod write-value ((type symbol) stream value &key)
   (assert (typep value type))
   (write-object value stream))
+
+(defmethod object-size + ((type symbol))
+  "Helper to have an object size from its binary class name."
+  (let ((object (make-instance type)))
+    (object-size object)))
 
 ;;; Binary types
 
@@ -46,7 +54,7 @@
        (defmethod write-value ((,type (eql ',name)) ,stream ,value &key ,@args)
 	 (declare (ignorable ,@args))
 	 ,(type-writer-body name spec stream value))
-       (defmethod object-size + ((,type (eql ',name)) &key ,@args)
+       (defmethod type-size ((,type (eql ',name)) &key ,@args)
 	 (declare (ignorable ,@args))
 	 ,(type-size-body name spec type)))))
 
@@ -86,7 +94,7 @@
 	      `(progn ,@body))
 	    `(error "No size defined for type ~s" ',name)))
       (destructuring-bind (type &rest args) (mklist (first spec))
-	`(object-size ',type ,@args))))
+	`(type-size ',type ,@args))))
 
 ;;; Enumerations
 
@@ -133,7 +141,11 @@
        (defmethod write-object progn ((,objectvar ,name) ,streamvar)
          (declare (ignorable ,streamvar))
          (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
-           ,@(mapcar #'(lambda (x) (slot->write-value x streamvar)) slots))))))
+           ,@(mapcar #'(lambda (x) (slot->write-value x streamvar)) slots)))
+
+       (defmethod object-size + ((,objectvar ,name))
+	 (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
+	   (+ ,@(mapcar #'(lambda (x) (slot->object-size x)) slots)))))))
 
 (defmacro define-binary-class (name (&rest superclasses) slots)
   (with-gensyms (objectvar streamvar)
@@ -192,6 +204,11 @@
 (defun slot->write-value (spec stream)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
     `(write-value ',type ,stream ,name ,@args)))
+
+(defun slot->object-size (spec)
+  (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
+    (declare (ignore name))
+    `(type-size ',type ,@args)))
 
 (defun slot->binding (spec stream)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
