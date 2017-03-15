@@ -12,7 +12,8 @@
        finally (return value)))
   (:writer (out value)
     (loop for low-bit downfrom (* bits-per-byte (1- bytes)) to 0 by bits-per-byte
-       do (write-byte (ldb (byte bits-per-byte low-bit) value) out))))
+	  do (write-byte (ldb (byte bits-per-byte low-bit) value) out)))
+  (:size () bytes))
 
 (define-binary-type u1 () (unsigned-integer :bytes 1 :bits-per-byte 8))
 (define-binary-type u2 () (unsigned-integer :bytes 2 :bits-per-byte 8))
@@ -29,7 +30,8 @@
       string))
   (:writer (out string)
     (dotimes (i length)
-      (write-value character-type out (char string i)))))
+      (write-value character-type out (char string i))))
+  (:size () (* length (object-size character-type))))
 
 (define-binary-type generic-terminated-string (terminator character-type)
   (:reader (in)
@@ -52,7 +54,8 @@
     (let ((code (char-code char)))
       (if (<= 0 code #xff)
           (write-byte code out)
-          (error "Illegal character for iso-8859-1 encoding: character: ~c with code: ~d" char code)))))
+          (error "Illegal character for iso-8859-1 encoding: character: ~c with code: ~d" char code))))
+  (:size () 1))
 
 (define-binary-type iso-8859-1-string (length)
   (generic-string :length length :character-type 'iso-8859-1-char))
@@ -80,13 +83,13 @@
       (unless (<= 0 code #xffff)
         (error "Illegal character for ucs-2 encoding: ~c with char-code: ~d" char code))
       (when swap (setf code (swap-bytes code)))
-      (write-value 'u2 out code))))
+      (write-value 'u2 out code)))
+  (:size () 2))
 
 (defun swap-bytes (code)
   (assert (<= code #xffff))
   (rotatef (ldb (byte 8 0) code) (ldb (byte 8 8) code))
   code)
-
 
 (define-binary-type ucs-2-char-big-endian () (ucs-2-char :swap nil))
 
@@ -110,7 +113,10 @@
     (write-value
      'generic-string out string
      :length (length string)
-     :character-type (ucs-2-char-type #xfeff))))
+     :character-type (ucs-2-char-type #xfeff)))
+  (:size () (object-size 'generic-string
+			 :length length
+			 :character-type 'ucs-2-char)))
 
 (define-binary-type ucs-2-terminated-string (terminator)
   (:reader (in)
@@ -121,8 +127,10 @@
        :character-type (ucs-2-char-type byte-order-mark))))
   (:writer (out string)
     (write-value 'u2 out #xfeff)
-    (write-value 
+    (write-value
      'generic-terminated-string out string
      :terminator terminator
-     :character-type (ucs-2-char-type #xfeff))))
-
+     :character-type (ucs-2-char-type #xfeff)))
+  (:size () (object-size 'generic-terminated-string
+			 :terminator terminator
+			 :character-type 'ucs-2-char)))
