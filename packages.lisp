@@ -24,6 +24,7 @@
 (defpackage :com.gigamonkeys.binary-data.common-datatypes
   (:use :common-lisp :com.gigamonkeys.binary-data)
   (:export
+   :integer
    :u1
    :u2
    :u4
@@ -32,6 +33,9 @@
    :s2
    :s4
    :s8
+   :float
+   :float4
+   :float8
    :generic-string
    :generic-terminated-string
    :iso-8859-1-char
@@ -42,5 +46,4 @@
    :ucs-2-char-little-endian
    :ucs-2-char-type
    :ucs-2-string
-   :ucs-2-terminated-string
-   :unsigned-integer))
+   :ucs-2-terminated-string))

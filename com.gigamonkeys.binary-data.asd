@@ -10,4 +10,4 @@
   ((:file "packages")
    (:file "binary-data" :depends-on ("packages"))
    (:file "common-datatypes" :depends-on ("packages" "binary-data")))
-  :depends-on (alexandria))
+  :depends-on (alexandria ieee-floats))

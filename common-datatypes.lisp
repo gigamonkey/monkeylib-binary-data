@@ -34,6 +34,29 @@
 (define-binary-type s4 () (integer :bytes 4 :sign t))
 (define-binary-type s8 () (integer :bytes 8 :sign t))
 
+;; Little-endian IEEE floats
+(define-binary-type float (bytes)
+  (:reader (in)
+           (loop with value = 0
+                 with bits-per-byte = 8
+                 with decoder = (ecase bytes
+                                  (4 #'ieee-floats:decode-float32)
+                                  (8 #'ieee-floats:decode-float64))
+                 for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
+                 do (setf (ldb (byte bits-per-byte low-bit) value) (read-byte in))
+                 finally (return (funcall decoder value))))
+  (:writer (out value)
+           (loop with bits-per-byte = 8
+                 with encoded-value = (ecase bytes
+                                        (4 (ieee-floats:encode-float32 value))
+                                        (8 (ieee-floats:encode-float64 value)))
+                 for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
+                 do (write-byte (ldb (byte bits-per-byte low-bit) encoded-value) out)))
+  (:size () bytes))
+
+(define-binary-type float4 () (float :bytes 4))
+(define-binary-type float8 () (float :bytes 8))
+
 ;;; Strings
 
 (define-binary-type generic-string (length character-type)
