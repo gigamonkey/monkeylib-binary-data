@@ -26,8 +26,12 @@
   (:export
    :u1
    :u2
-   :u3
    :u4
+   :u8
+   :s1
+   :s2
+   :s4
+   :s8
    :generic-string
    :generic-terminated-string
    :iso-8859-1-char
