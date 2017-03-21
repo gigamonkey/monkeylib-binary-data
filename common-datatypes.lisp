@@ -4,7 +4,7 @@
 
 (in-package :com.gigamonkeys.binary-data.common-datatypes)
 
-;; Little-endian octet integers
+;;; Little-endian octet integers
 (define-binary-type integer (bytes sign)
   (:reader (in)
            (loop with unsigned-value = 0
@@ -34,7 +34,7 @@
 (define-binary-type s4 () (integer :bytes 4 :sign t))
 (define-binary-type s8 () (integer :bytes 8 :sign t))
 
-;; Little-endian IEEE floats
+;;; Little-endian IEEE floats
 (define-binary-type float (bytes)
   (:reader (in)
            (loop with value = 0
