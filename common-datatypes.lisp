@@ -4,21 +4,35 @@
 
 (in-package :com.gigamonkeys.binary-data.common-datatypes)
 
-(define-binary-type unsigned-integer (bytes bits-per-byte)
+;; Little-endian octet integers
+(define-binary-type integer (bytes sign)
   (:reader (in)
-    (loop with value = 0
-       for low-bit downfrom (* bits-per-byte (1- bytes)) to 0 by bits-per-byte do
-         (setf (ldb (byte bits-per-byte low-bit) value) (read-byte in))
-       finally (return value)))
+           (loop with unsigned-value = 0
+                 with bits-per-byte = 8
+                 for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
+                 do (setf (ldb (byte bits-per-byte low-bit) unsigned-value) (read-byte in))
+                 finally (let ((bits (* bits-per-byte bytes)))
+                           (if (and sign (>= unsigned-value (ash 1 (1- bits))))
+                               (return (- unsigned-value (ash 1 bits)))
+                               (return unsigned-value)))))
   (:writer (out value)
-    (loop for low-bit downfrom (* bits-per-byte (1- bytes)) to 0 by bits-per-byte
-	  do (write-byte (ldb (byte bits-per-byte low-bit) value) out)))
+           (loop with bits-per-byte = 8
+                 with unsigned-value = (if (plusp value)
+                                           value
+                                           (- (ash 1 (* bits-per-byte bytes)) value))
+                 for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
+                 do (write-byte (ldb (byte bits-per-byte low-bit) unsigned-value) out)))
   (:size () bytes))
 
-(define-binary-type u1 () (unsigned-integer :bytes 1 :bits-per-byte 8))
-(define-binary-type u2 () (unsigned-integer :bytes 2 :bits-per-byte 8))
-(define-binary-type u3 () (unsigned-integer :bytes 3 :bits-per-byte 8))
-(define-binary-type u4 () (unsigned-integer :bytes 4 :bits-per-byte 8))
+(define-binary-type u1 () (integer :bytes 1))
+(define-binary-type u2 () (integer :bytes 2))
+(define-binary-type u4 () (integer :bytes 4))
+(define-binary-type u8 () (integer :bytes 8))
+
+(define-binary-type s1 () (integer :bytes 1 :sign t))
+(define-binary-type s2 () (integer :bytes 2 :sign t))
+(define-binary-type s4 () (integer :bytes 4 :sign t))
+(define-binary-type s8 () (integer :bytes 8 :sign t))
 
 ;;; Strings
 
