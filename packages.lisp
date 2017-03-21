@@ -36,6 +36,7 @@
    :float
    :float4
    :float8
+   :vector
    :generic-string
    :generic-terminated-string
    :iso-8859-1-char

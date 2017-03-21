@@ -57,6 +57,18 @@
 (define-binary-type float4 () (float :bytes 4))
 (define-binary-type float8 () (float :bytes 8))
 
+;;; Vectors
+(define-binary-type vector (size type)
+  (:reader (in)
+           (loop with arr = (make-array size)
+                 for i below size
+                 do (setf (aref arr i) (read-value type in))
+                 finally (return arr)))
+  (:writer (out value)
+           (loop for e across value
+                 do (write-value type out e)))
+  (:size () (* size (type-size type))))
+
 ;;; Strings
 
 (define-binary-type generic-string (length character-type)
