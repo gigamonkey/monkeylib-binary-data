@@ -207,3 +207,20 @@
   (:size () (object-size 'generic-terminated-string
 			 :terminator terminator
 			 :character-type 'ucs-2-char)))
+
+;;; Fix length with terminator ASCII strings. This code should work
+;;; for 8bit character be it ASCII, ISO 8859 or UTF-8 sans extensions.
+(define-binary-type 8bit-string (length terminator)
+  (:reader (in)
+           (let ((string (make-string length)))
+             (dotimes (i length)
+               (setf (char string i) (code-char (read-byte in))))
+             (subseq string 0 (position terminator string :test #'char=))))
+  (:writer (out string)
+           (let* ((outstring (make-string length :initial-element terminator)))
+             (loop for char across string
+                   for i from 0
+                   do (setf (char outstring i) (char string i)))
+             (loop for char across outstring
+                   do (write-byte (char-code char) out))))
+  (:size () length))
