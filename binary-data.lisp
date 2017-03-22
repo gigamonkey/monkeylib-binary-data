@@ -122,7 +122,8 @@
 		  (write-value ',type ,out
 			       (case ,value
 				 ,@(loop for (symbol number) in mapping collect `(,symbol ,number))
-				 (otherwise (error "~a not a legal ~a" ,value ',name)))))))))
+				 (otherwise (error "~a not a legal ~a" ,value ',name)))))
+	 (:size () (type-size ',type))))))
 
 ;;; Bitfields
 ;;;
