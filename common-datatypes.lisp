@@ -69,29 +69,6 @@
                  do (write-value type out e)))
   (:size () (* size (type-size type))))
 
-;;; Bitfields
-;;;
-;;; Here is a bitfield stored in an unsigned 16bit value where the bit
-;;; 0 means 'a and bit 1 means 'b:
-;;;
-;;; (define-bitfield foo (u2)
-;;;   ((a 0) (b 1)))
-(defmacro define-bitfield (name (type) &rest mapping)
-  (alexandria:with-gensyms (in out value symbol bit encval)
-    `(define-binary-type ,name ()
-       (:reader (,in)
-                (let ((,value (read-value ',type ,in)))
-                  (loop for (,symbol ,bit) in ',@mapping
-                        when (ldb-test (byte 1 ,bit) ,value)
-                          collect ,symbol)))
-       (:writer (,out ,value)
-                (write-value ',type ,out
-                             (loop with ,encval = 0
-                                   for (,symbol ,bit) in ',@mapping
-                                   do (when (member ,symbol ,value)
-                                        (setf (ldb (byte 1 ,bit) ,encval) 1))
-                                   finally (return ,encval))))
-       (:size () (type-size ',type)))))
 
 ;;; Strings
 

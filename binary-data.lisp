@@ -98,6 +98,17 @@
 
 ;;; Enumerations
 
+(defun normalize-mapping (mapping)
+  (loop with number = 0
+     for entry in mapping collect
+       (typecase entry
+	 (symbol
+	  (prog1 (list entry number) (incf number)))
+	 (cons
+	  (let ((actual-number (or (second entry) number)))
+	    (prog1 (list (first entry) actual-number)
+	      (setf number (1+ actual-number))))))))
+
 (defmacro define-enumeration (name (type) &rest mapping)
   (let ((mapping (normalize-mapping mapping)))
     (with-gensyms (in out value)
@@ -113,16 +124,29 @@
 				 ,@(loop for (symbol number) in mapping collect `(,symbol ,number))
 				 (otherwise (error "~a not a legal ~a" ,value ',name)))))))))
 
-(defun normalize-mapping (mapping)
-  (loop with number = 0
-     for entry in mapping collect
-       (typecase entry
-	 (symbol
-	  (prog1 (list entry number) (incf number)))
-	 (cons
-	  (let ((actual-number (or (second entry) number)))
-	    (prog1 (list (first entry) actual-number)
-	      (setf number (1+ actual-number))))))))
+;;; Bitfields
+;;;
+;;; Here is a bitfield stored in an unsigned 16bit value where the bit
+;;; 0 means 'a and bit 1 means 'b:
+;;;
+;;; (define-bitfield foo (u2)
+;;;   ((a 0) (b 1)))
+(defmacro define-bitfield (name (type) &rest mapping)
+  (alexandria:with-gensyms (in out value symbol bit encval)
+    `(define-binary-type ,name ()
+       (:reader (,in)
+                (let ((,value (read-value ',type ,in)))
+                  (loop for (,symbol ,bit) in ',@mapping
+                        when (ldb-test (byte 1 ,bit) ,value)
+                          collect ,symbol)))
+       (:writer (,out ,value)
+                (write-value ',type ,out
+                             (loop with ,encval = 0
+                                   for (,symbol ,bit) in ',@mapping
+                                   do (when (member ,symbol ,value)
+                                        (setf (ldb (byte 1 ,bit) ,encval) 1))
+                                   finally (return ,encval))))
+       (:size () (type-size ',type)))))
 
 ;;; Binary classes
 

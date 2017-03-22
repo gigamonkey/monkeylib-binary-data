@@ -11,6 +11,7 @@
            :define-tagged-binary-class
            :define-binary-type
 	   :define-enumeration
+	   :define-bitfield
            :read-value
            :write-value
 	   :type-size
