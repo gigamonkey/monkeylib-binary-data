@@ -48,4 +48,5 @@
    :ucs-2-char-little-endian
    :ucs-2-char-type
    :ucs-2-string
-   :ucs-2-terminated-string))
+   :ucs-2-terminated-string
+   :8bit-string))
