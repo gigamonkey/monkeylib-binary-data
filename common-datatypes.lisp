@@ -17,9 +17,9 @@
                                (return unsigned-value)))))
   (:writer (out value)
            (loop with bits-per-byte = 8
-                 with unsigned-value = (if (plusp value)
-                                           value
-                                           (- (ash 1 (* bits-per-byte bytes)) value))
+                 with unsigned-value = (if (and sign (minusp value))
+					   (+ (ash 1 (* bits-per-byte bytes)) value)
+                                           value)
                  for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
                  do (write-byte (ldb (byte bits-per-byte low-bit) unsigned-value) out)))
   (:size () bytes))
