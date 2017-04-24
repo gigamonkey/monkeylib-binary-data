@@ -19,7 +19,7 @@
 	   (loop with bits-per-byte = (bits-per-byte-of-stream fd)
 		 for bit from 0 below bits by bits-per-byte
 		 do (write-byte (ldb (byte bits-per-byte bit) value) fd)))
-  (:size (fd) (ceiling (bits-per-byte-of-stream fd) 8)))
+  (:size (fd) (ceiling bits 8)))
 
 (define-binary-type u1 () (unsigned-integer :bits 8))
 (define-binary-type u2 () (unsigned-integer :bits 16))
