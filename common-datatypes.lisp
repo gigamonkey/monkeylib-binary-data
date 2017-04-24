@@ -68,7 +68,7 @@
   (:writer (out value)
            (loop for e across value
                  do (write-value type out e)))
-  (:size (fd) (* size (type-size type))))
+  (:size (fd) (* size (type-size type fd))))
 
 
 ;;; Strings
