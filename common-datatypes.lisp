@@ -47,48 +47,16 @@
 (build-signed s4 u4 32)
 (build-signed s8 u8 64)
 
-;;; Little-endian octet integers
-(define-binary-type integer (bytes sign)
-  (:reader (in)
-           (loop with unsigned-value = 0
-                 with bits-per-byte = 8
-                 for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
-                 do (setf (ldb (byte bits-per-byte low-bit) unsigned-value) (read-byte in))
-                 finally (let ((bits (* bits-per-byte bytes)))
-                           (if (and sign (>= unsigned-value (ash 1 (1- bits))))
-                               (return (- unsigned-value (ash 1 bits)))
-                               (return unsigned-value)))))
-  (:writer (out value)
-           (loop with bits-per-byte = 8
-                 with unsigned-value = (if (and sign (minusp value))
-					   (+ (ash 1 (* bits-per-byte bytes)) value)
-                                           value)
-                 for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
-                 do (write-byte (ldb (byte bits-per-byte low-bit) unsigned-value) out)))
-  (:size (fd) bytes))
+;;; IEEE floats on top of unsigned
+(define-binary-type float4 ()
+  (:reader (in) (ieee-floats:decode-float32 (read-value 'u4 in)))
+  (:writer (out value) (write-value 'u4 out (ieee-floats:encode-float32 value)))
+  (:size (fd) (type-size 'u4 fd)))
 
-;;; Little-endian IEEE floats
-(define-binary-type float (bytes)
-  (:reader (in)
-           (loop with value = 0
-                 with bits-per-byte = 8
-                 with decoder = (ecase bytes
-                                  (4 #'ieee-floats:decode-float32)
-                                  (8 #'ieee-floats:decode-float64))
-                 for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
-                 do (setf (ldb (byte bits-per-byte low-bit) value) (read-byte in))
-                 finally (return (funcall decoder value))))
-  (:writer (out value)
-           (loop with bits-per-byte = 8
-                 with encoded-value = (ecase bytes
-                                        (4 (ieee-floats:encode-float32 value))
-                                        (8 (ieee-floats:encode-float64 value)))
-                 for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte
-                 do (write-byte (ldb (byte bits-per-byte low-bit) encoded-value) out)))
-  (:size (fd) bytes))
-
-(define-binary-type float4 () (float :bytes 4))
-(define-binary-type float8 () (float :bytes 8))
+(define-binary-type float8 ()
+  (:reader (in) (ieee-floats:decode-float64 (read-value 'u8 in)))
+  (:writer (out value) (write-value 'u8 out (ieee-floats:encode-float64 value)))
+  (:size (fd) (type-size 'u8 fd)))
 
 ;;; Vectors
 (define-binary-type vector (size type)
