@@ -19,7 +19,7 @@
 	   (loop with bits-per-byte = (bits-per-byte-of-stream fd)
 		 for bit from 0 below bits by bits-per-byte
 		 do (write-byte (ldb (byte bits-per-byte bit) value) fd)))
-  (:size (fd) (ceiling bits 8)))
+  (:size () (ceiling bits 8)))
 
 (define-binary-type u1 () (unsigned-integer :bits 8))
 (define-binary-type u2 () (unsigned-integer :bits 16))
@@ -40,7 +40,7 @@
 	 (define-binary-type ,signed-type ()
 	   (:reader (fd) (,from-2s-complement (read-value ',unsigned-type fd)))
 	   (:writer (fd value) (write-value ',unsigned-type fd (,to-2s-complement value)))
-	   (:size (fd) (type-size ',unsigned-type fd)))))))
+	   (:size () (type-size ',unsigned-type)))))))
 
 (build-signed s1 u1 8)
 (build-signed s2 u2 16)
@@ -51,12 +51,12 @@
 (define-binary-type float4 ()
   (:reader (in) (ieee-floats:decode-float32 (read-value 'u4 in)))
   (:writer (out value) (write-value 'u4 out (ieee-floats:encode-float32 value)))
-  (:size (fd) (type-size 'u4 fd)))
+  (:size () (type-size 'u4)))
 
 (define-binary-type float8 ()
   (:reader (in) (ieee-floats:decode-float64 (read-value 'u8 in)))
   (:writer (out value) (write-value 'u8 out (ieee-floats:encode-float64 value)))
-  (:size (fd) (type-size 'u8 fd)))
+  (:size () (type-size 'u8)))
 
 ;;; Vectors
 (define-binary-type vector (size type)
@@ -68,11 +68,11 @@
   (:writer (out value)
            (loop for e across value
                  do (write-value type out e)))
-  (:size (fd) (* size (type-size type fd))))
+  (:size () (* size (type-size type))))
 
+(define-binary-type ten-u8 () (vector :size 10 :type 'u8))
 
 ;;; Strings
-
 (define-binary-type generic-string (length character-type)
   (:reader (in)
 	   (let ((string (make-string length)))
@@ -82,7 +82,7 @@
   (:writer (out string)
 	   (dotimes (i length)
 	     (write-value character-type out (char string i))))
-  (:size (fd) (* length (object-size character-type))))
+  (:size () (* length (type-size character-type))))
 
 (define-binary-type generic-terminated-string (terminator character-type)
   (:reader (in)
@@ -106,7 +106,7 @@
 	     (if (<= 0 code #xff)
 		 (write-byte code out)
 		 (error "Illegal character for iso-8859-1 encoding: character: ~c with code: ~d" char code))))
-  (:size (fd) 1))
+  (:size () 1))
 
 (define-binary-type iso-8859-1-string (length)
   (generic-string :length length :character-type 'iso-8859-1-char))
@@ -135,7 +135,7 @@
 	       (error "Illegal character for ucs-2 encoding: ~c with char-code: ~d" char code))
 	     (when swap (setf code (swap-bytes code)))
 	     (write-value 'u2 out code)))
-  (:size (fd) 2))
+  (:size () 2))
 
 (defun swap-bytes (code)
   (assert (<= code #xffff))
@@ -165,9 +165,9 @@
 	    'generic-string out string
 	    :length (length string)
 	    :character-type (ucs-2-char-type #xfeff)))
-  (:size (fd) (object-size 'generic-string
-			   :length length
-			   :character-type 'ucs-2-char)))
+  (:size () (type-size 'generic-string
+		       :length length
+		       :character-type 'ucs-2-char)))
 
 (define-binary-type ucs-2-terminated-string (terminator)
   (:reader (in)
@@ -182,9 +182,9 @@
 	    'generic-terminated-string out string
 	    :terminator terminator
 	    :character-type (ucs-2-char-type #xfeff)))
-  (:size (fd) (object-size 'generic-terminated-string
-			   :terminator terminator
-			   :character-type 'ucs-2-char)))
+  (:size () (type-size 'generic-terminated-string
+		       :terminator terminator
+		       :character-type 'ucs-2-char)))
 
 ;;; Fix length with terminator ASCII strings. This code should work
 ;;; for 8bit character be it ASCII, ISO 8859 or UTF-8 sans extensions.
@@ -201,4 +201,4 @@
                    do (setf (char outstring i) (char string i)))
              (loop for char across outstring
                    do (write-byte (char-code char) out))))
-  (:size (fd) length))
+  (:size () length))

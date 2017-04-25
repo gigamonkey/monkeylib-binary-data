@@ -14,7 +14,7 @@
 (defgeneric write-value (type stream value &key)
   (:documentation "Write a value as the given type to the stream."))
 
-(defgeneric type-size (type stream &key)
+(defgeneric type-size (type &key)
   (:documentation "Returns the octet size of a type."))
 
 (defgeneric read-object (object stream)
@@ -25,7 +25,7 @@
   (:method-combination progn :most-specific-last)
   (:documentation "Write out the slots of object to the stream."))
 
-(defgeneric object-size (object stream)
+(defgeneric object-size (object)
   (:method-combination +)
   (:documentation "Returns the octet size of an object."))
 
@@ -38,10 +38,10 @@
   (assert (typep value type))
   (write-object value stream))
 
-(defmethod object-size + ((type symbol) stream)
+(defmethod object-size + ((type symbol))
   "Helper to have an object size from its binary class name."
   (let ((object (make-instance type)))
-    (object-size object stream)))
+    (object-size object)))
 
 ;;; Binary types
 
@@ -54,9 +54,9 @@
        (defmethod write-value ((,type (eql ',name)) ,stream ,value &key ,@args)
 	 (declare (ignorable ,@args))
 	 ,(type-writer-body name spec stream value))
-       (defmethod type-size ((,type (eql ',name)) ,stream &key ,@args)
+       (defmethod type-size ((,type (eql ',name)) &key ,@args)
 	 (declare (ignorable ,@args))
-	 ,(type-size-body name spec stream)))))
+	 ,(type-size-body name spec)))))
 
 (defun rw-alistp (alist)
   "Is alist a ((:reader...) (:writer...) (:size...)) kind of alist."
@@ -86,15 +86,14 @@
       (destructuring-bind (type &rest args) (mklist (first spec))
 	`(write-value ',type ,stream ,value ,@args))))
 
-(defun type-size-body (name spec stream)
+(defun type-size-body (name spec)
   (if (rw-alistp spec)
       (let ((size-spec (assoc :size spec)))
 	(if size-spec
-	    (destructuring-bind ((in) &body body) (cdr size-spec)
-	      `(let ((,in ,stream)) ,@body))
+	    `(progn ,@(cddr size-spec))
 	    `(error "No size defined for type ~s" ',name)))
       (destructuring-bind (type &rest args) (mklist (first spec))
-	`(type-size ',type ,stream ,@args))))
+	`(type-size ',type ,@args))))
 
 ;;; Enumerations
 
@@ -123,7 +122,7 @@
 			       (case ,value
 				 ,@(loop for (symbol number) in mapping collect `(,symbol ,number))
 				 (otherwise (error "~a not a legal ~a" ,value ',name)))))
-	 (:size (,in) (type-size ',type ,in))))))
+	 (:size () (type-size ',type))))))
 
 ;;; Bitfields
 ;;;
@@ -147,7 +146,7 @@
                                    do (when (member ,symbol ,value)
                                         (setf (ldb (byte 1 ,bit) ,encval) 1))
                                    finally (return ,encval))))
-       (:size (,in) (type-size ',type ,in)))))
+       (:size () (type-size ',type)))))
 
 ;;; Binary classes
 
@@ -168,10 +167,9 @@
          (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
            ,@(mapcar #'(lambda (x) (slot->write-value x streamvar)) slots)))
 
-       (defmethod object-size + ((,objectvar ,name) ,streamvar)
-	 (declare (ignorable ,streamvar))
+       (defmethod object-size + ((,objectvar ,name))
 	 (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
-	   (+ ,@(mapcar #'(lambda (x) (slot->object-size x streamvar)) slots)))))))
+	   (+ ,@(mapcar #'(lambda (x) (slot->object-size x)) slots)))))))
 
 (defmacro define-binary-class (name (&rest superclasses) slots)
   (with-gensyms (objectvar streamvar)
@@ -231,10 +229,10 @@
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
     `(write-value ',type ,stream ,name ,@args)))
 
-(defun slot->object-size (spec stream)
+(defun slot->object-size (spec)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
     (declare (ignore name))
-    `(type-size ',type ,stream ,@args)))
+    `(type-size ',type ,@args)))
 
 (defun slot->binding (spec stream)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
