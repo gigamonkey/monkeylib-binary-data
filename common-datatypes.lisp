@@ -77,18 +77,59 @@
   (:size () (type-size 'u8)))
 
 ;;; Vectors
+(defun cl-type (type)
+  (case type
+    (u1 '(unsigned-byte 8))
+    (s1 '(signed-byte 8))
+    (u2 '(unsigned-byte 16))
+    (s2 '(signed-byte 16))
+    (u4 '(unsigned-byte 32))
+    (s4 '(signed-byte 32))
+    (u8 '(unsigned-byte 64))
+    (s8 '(signed-byte 64))
+    (float4 'single-float)
+    (float8 'double-float)))
+
+(defun %get-fun-of-type (fmt type)
+  (let ((sym (find-symbol (format nil fmt type))))
+    (when sym (symbol-function sym))))
+
+(defun marshaller (type)
+  (%get-fun-of-type "MARSHALL-~a" type))
+
+(defun unmarshaller (type)
+  (%get-fun-of-type "UNMARSHALL-~a" type))
+
 (define-binary-type vector (size type)
   (:reader (in)
-           (loop with arr = (make-array size)
-                 for i below size
-                 do (setf (aref arr i) (read-value type in))
-                 finally (return arr)))
+	   (let ((arr (make-array size))
+		 (stream-byte-size (ceiling (bits-per-byte-of-stream in) 8))
+		 (unmarshaller (unmarshaller type)))
+	     ;; if stream element has the same size as type then
+	     ;; read-sequence + unmarshall else read one value at a
+	     ;; time
+	     (cond ((= stream-byte-size (type-size type))
+		    (read-sequence arr in)
+		    (unless (member type '(u1 u2 u4 u8))
+		      (dotimes (i size)
+			(setf (aref arr i) (funcall unmarshaller (aref arr i))))))
+		   (t
+		    (dotimes (i size)
+		      (setf (aref arr i) (read-value type in)))))
+	     arr))
   (:writer (out value)
-           (loop for e across value
-                 do (write-value type out e)))
+	   (let ((marshaller (marshaller type))
+		 (stream-byte-size (ceiling (bits-per-byte-of-stream out) 8))
+		 (size (length value)))
+	     (cond ((= stream-byte-size (type-size type))
+		    (let ((arr (make-array size :element-type (stream-element-type out))))
+		      (dotimes (i size)
+			(setf (aref arr i) (funcall marshaller (aref value i))))
+		      (write-sequence arr out)))
+		   (t
+		    (loop for e across value
+			  do (write-value type out e))))))
   (:size () (* size (type-size type))))
-
-(define-binary-type ten-u8 () (vector :size 10 :type 'u8))
 
 ;;; Strings
 (define-binary-type generic-string (length character-type)
