@@ -28,19 +28,21 @@
 
 ;;; Signed on top of unsigned
 (defmacro build-signed (signed-type unsigned-type bits)
-  (alexandria:with-gensyms (from-2s-complement to-2s-complement)
-    (let ((mask (ash 1 (1- bits)))
-	  (maximum (ash 1 bits)))
-      `(flet ((,from-2s-complement (x)
-		(declare (type (unsigned-byte ,bits) x))
-		(+ (- (logand x ,mask)) (logand x (lognot ,mask))))
-	      (,to-2s-complement (x)
-		(declare (type (signed-byte ,bits) x))
-		(if (plusp x) x (+ x ,maximum))))
-	 (define-binary-type ,signed-type ()
-	   (:reader (fd) (,from-2s-complement (read-value ',unsigned-type fd)))
-	   (:writer (fd value) (write-value ',unsigned-type fd (,to-2s-complement value)))
-	   (:size () (type-size ',unsigned-type)))))))
+  (let ((marshall-name (intern (format nil "MARSHALL-~a" signed-type)))
+	(unmarshall-name (intern (format nil "UNMARSHALL-~a" signed-type)))
+	(mask (ash 1 (1- bits)))
+	(maximum (ash 1 bits)))
+    `(progn
+       (defun ,unmarshall-name (x)
+	 (declare (type (unsigned-byte ,bits) x))
+	 (+ (- (logand x ,mask)) (logand x (lognot ,mask))))
+       (defun ,marshall-name (x)
+	 (declare (type (signed-byte ,bits) x))
+	 (if (plusp x) x (+ x ,maximum)))
+       (define-binary-type ,signed-type ()
+	 (:reader (fd) (,unmarshall-name (read-value ',unsigned-type fd)))
+	 (:writer (fd value) (write-value ',unsigned-type fd (,marshall-name value)))
+	 (:size () (type-size ',unsigned-type))))))
 
 (build-signed s1 u1 8)
 (build-signed s2 u2 16)
@@ -48,14 +50,30 @@
 (build-signed s8 u8 64)
 
 ;;; IEEE floats on top of unsigned
+(defun marshall-float4 (x)
+  (declare (inline ieee-floats:encode-float32))
+  (ieee-floats:encode-float32 x))
+
+(defun unmarshall-float4 (x)
+  (declare (inline ieee-floats:decode-float32))
+  (ieee-floats:decode-float32 x))
+
+(defun marshall-float8 (x)
+  (declare (inline ieee-floats:encode-float64))
+  (ieee-floats:encode-float64 x))
+
+(defun unmarshall-float8 (x)
+  (declare (inline ieee-floats:decode-float64))
+  (ieee-floats:decode-float64 x))
+
 (define-binary-type float4 ()
-  (:reader (in) (ieee-floats:decode-float32 (read-value 'u4 in)))
-  (:writer (out value) (write-value 'u4 out (ieee-floats:encode-float32 value)))
+  (:reader (in) (unmarshall-float4 (read-value 'u4 in)))
+  (:writer (out value) (write-value 'u4 out (marshall-float4 value)))
   (:size () (type-size 'u4)))
 
 (define-binary-type float8 ()
-  (:reader (in) (ieee-floats:decode-float64 (read-value 'u8 in)))
-  (:writer (out value) (write-value 'u8 out (ieee-floats:encode-float64 value)))
+  (:reader (in) (unmarshall-float8 (read-value 'u8 in)))
+  (:writer (out value) (write-value 'u8 out (marshall-float8 value)))
   (:size () (type-size 'u8)))
 
 ;;; Vectors
