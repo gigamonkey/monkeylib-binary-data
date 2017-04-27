@@ -91,7 +91,8 @@
     (float8 'double-float)))
 
 (defun %get-fun-of-type (fmt type)
-  (let ((sym (find-symbol (format nil fmt type))))
+  ;; XXX why the reference to package?
+  (let ((sym (find-symbol (format nil fmt type) 'com.gigamonkeys.binary-data.common-datatypes)))
     (when sym (symbol-function sym))))
 
 (defun marshaller (type)
@@ -110,7 +111,7 @@
 	     ;; time
 	     (cond ((= stream-byte-size (type-size type))
 		    (read-sequence arr in)
-		    (unless (member type '(u1 u2 u4 u8))
+		    (when (functionp unmarshaller)
 		      (dotimes (i size)
 			(setf (aref arr i) (funcall unmarshaller (aref arr i))))))
 		   (t
@@ -122,10 +123,12 @@
 		 (stream-byte-size (ceiling (bits-per-byte-of-stream out) 8))
 		 (size (length value)))
 	     (cond ((= stream-byte-size (type-size type))
-		    (let ((arr (make-array size :element-type (stream-element-type out))))
-		      (dotimes (i size)
-			(setf (aref arr i) (funcall marshaller (aref value i))))
-		      (write-sequence arr out)))
+		    (if (functionp marshaller)
+			(let ((arr (make-array size :element-type (stream-element-type out))))
+			  (dotimes (i size)
+			    (setf (aref arr i) (funcall marshaller (aref value i))))
+			  (write-sequence arr out))
+			(write-sequence value out)))
 		   (t
 		    (loop for e across value
 			  do (write-value type out e))))))
