@@ -38,7 +38,7 @@
 	 (+ (- (logand x ,mask)) (logand x (lognot ,mask))))
        (defun ,marshall-name (x)
 	 (declare (type (signed-byte ,bits) x))
-	 (if (plusp x) x (+ x ,maximum)))
+	 (if (>= x 0) x (+ x ,maximum)))
        (define-binary-type ,signed-type ()
 	 (:reader (fd) (,unmarshall-name (read-value ',unsigned-type fd)))
 	 (:writer (fd value) (write-value ',unsigned-type fd (,marshall-name value)))
