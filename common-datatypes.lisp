@@ -77,19 +77,6 @@
   (:size () (type-size 'u8)))
 
 ;;; Vectors
-(defun cl-type (type)
-  (case type
-    (u1 '(unsigned-byte 8))
-    (s1 '(signed-byte 8))
-    (u2 '(unsigned-byte 16))
-    (s2 '(signed-byte 16))
-    (u4 '(unsigned-byte 32))
-    (s4 '(signed-byte 32))
-    (u8 '(unsigned-byte 64))
-    (s8 '(signed-byte 64))
-    (float4 'single-float)
-    (float8 'double-float)))
-
 (defun %get-fun-of-type (fmt type)
   ;; XXX why the reference to package?
   (let ((sym (find-symbol (format nil fmt type) 'com.gigamonkeys.binary-data.common-datatypes)))
