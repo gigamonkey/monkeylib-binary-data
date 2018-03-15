@@ -12,24 +12,26 @@
   ;; XXX seems fragile
   (car (last (stream-element-type stream))))
 
+(defun byte-indexes (bits bits-per-byte)
+  (loop for bit from 0 below bits by bits-per-byte collect bit))
+
 ;;; Unsigned integers
 (define-binary-type unsigned-integer (bits)
   (:reader (fd)
-	   (loop with bits-per-byte = (bits-per-byte-of-stream fd)
-		 with value = 0
-		 for bit from 0 below bits by bits-per-byte
-		 do (let ((b (ecase *endianness*
-			       (:little bit)
-			       (:big (- bits bits-per-byte bit)))))
-		      (setf (ldb (byte bits-per-byte b) value) (read-byte fd)))
-		 finally (return value)))
+	   (let* ((value 0)
+		  (bits-per-byte (bits-per-byte-of-stream fd))
+		  (indexes (byte-indexes bits bits-per-byte)))
+	     (unless (eq *endianness* :little)
+	       (setf indexes (nreverse indexes)))
+	     (dolist (i indexes value)
+	       (setf (ldb (byte bits-per-byte i) value) (read-byte fd)))))
   (:writer (fd value)
-	   (loop with bits-per-byte = (bits-per-byte-of-stream fd)
-		 for bit from 0 below bits by bits-per-byte
-		 do (let ((b (ecase *endianness*
-			       (:little bit)
-			       (:big (- bits bits-per-byte bit)))))
-		      (write-byte (ldb (byte bits-per-byte b) value) fd))))
+	   (let* ((bits-per-byte (bits-per-byte-of-stream fd))
+		  (indexes (byte-indexes bits bits-per-byte)))
+	     (unless (eq *endianness* :little)
+	       (setf indexes (nreverse indexes)))
+	     (dolist (i indexes)
+	       (write-byte (ldb (byte bits-per-byte i) value) fd))))
   (:size () (ceiling bits 8)))
 
 (define-binary-type u1 () (unsigned-integer :bits 8))
