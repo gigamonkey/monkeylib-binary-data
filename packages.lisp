@@ -25,6 +25,7 @@
 (defpackage :com.gigamonkeys.binary-data.common-datatypes
   (:use :common-lisp :com.gigamonkeys.binary-data)
   (:export
+   :*endianness*
    :integer
    :u1
    :u2

@@ -4,21 +4,32 @@
 
 (in-package :com.gigamonkeys.binary-data.common-datatypes)
 
+(defparameter *endianness* :little
+  "Sets unsigned intergers read/write endianness. Should be one of
+  :little or :big.")
+
 (defun bits-per-byte-of-stream (stream)
+  ;; XXX seems fragile
   (car (last (stream-element-type stream))))
 
-;;; Little-endian unsigned-integers
+;;; Unsigned integers
 (define-binary-type unsigned-integer (bits)
   (:reader (fd)
 	   (loop with bits-per-byte = (bits-per-byte-of-stream fd)
 		 with value = 0
 		 for bit from 0 below bits by bits-per-byte
-		 do (setf (ldb (byte bits-per-byte bit) value) (read-byte fd))
+		 do (let ((b (ecase *endianness*
+			       (:little bit)
+			       (:big (- bits bits-per-byte bit)))))
+		      (setf (ldb (byte bits-per-byte b) value) (read-byte fd)))
 		 finally (return value)))
   (:writer (fd value)
 	   (loop with bits-per-byte = (bits-per-byte-of-stream fd)
 		 for bit from 0 below bits by bits-per-byte
-		 do (write-byte (ldb (byte bits-per-byte bit) value) fd)))
+		 do (let ((b (ecase *endianness*
+			       (:little bit)
+			       (:big (- bits bits-per-byte bit)))))
+		      (write-byte (ldb (byte bits-per-byte b) value) fd))))
   (:size () (ceiling bits 8)))
 
 (define-binary-type u1 () (unsigned-integer :bits 8))
