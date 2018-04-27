@@ -8,30 +8,25 @@
   "Sets unsigned intergers read/write endianness. Should be one of
   :little or :big.")
 
-(defun bits-per-byte-of-stream (stream)
-  ;; XXX seems fragile
-  (car (last (stream-element-type stream))))
-
-(defun byte-indexes (bits bits-per-byte)
-  (loop for bit from 0 below bits by bits-per-byte collect bit))
+(defun byte-indexes (bits endianness)
+  (let ((byte-indexes (loop for i below bits by 8 collect i)))
+    (unless (eq endianness :little)
+      (setf byte-indexes (nreverse byte-indexes)))
+    byte-indexes))
 
 ;;; Unsigned integers
 (define-binary-type unsigned-integer (bits)
   (:reader (fd)
-	   (let* ((value 0)
-		  (bits-per-byte (bits-per-byte-of-stream fd))
-		  (indexes (byte-indexes bits bits-per-byte)))
-	     (unless (eq *endianness* :little)
-	       (setf indexes (nreverse indexes)))
-	     (dolist (i indexes value)
-	       (setf (ldb (byte bits-per-byte i) value) (read-byte fd)))))
+	   (assert (equal (stream-element-type fd) '(unsigned-byte 8)))
+	   (let ((byte-indexes (byte-indexes bits *endianness*))
+		 (value 0))
+	     (dolist (i byte-indexes value)
+	       (setf (ldb (byte 8 i) value) (read-byte fd)))))
   (:writer (fd value)
-	   (let* ((bits-per-byte (bits-per-byte-of-stream fd))
-		  (indexes (byte-indexes bits bits-per-byte)))
-	     (unless (eq *endianness* :little)
-	       (setf indexes (nreverse indexes)))
-	     (dolist (i indexes)
-	       (write-byte (ldb (byte bits-per-byte i) value) fd))))
+	   (assert (equal (stream-element-type fd) '(unsigned-byte 8)))
+	   (let ((byte-indexes (byte-indexes bits *endianness*)))
+	     (dolist (i byte-indexes)
+	       (write-byte (ldb (byte 8 i) value) fd))))
   (:size () (ceiling bits 8)))
 
 (define-binary-type u1 () (unsigned-integer :bits 8))
@@ -76,45 +71,69 @@
 ;;; Vectors
 (defun marshaller (type)
   (case type
+    (s1 #'marshall-s1)
+    (s2 #'marshall-s2)
+    (s4 #'marshall-s4)
+    (s8 #'marshall-s8)
     (float4 #'ieee-floats:encode-float32)
     (float8 #'ieee-floats:encode-float64)))
 
 (defun unmarshaller (type)
   (case type
+    (s1 #'unmarshall-s1)
+    (s2 #'unmarshall-s2)
+    (s4 #'unmarshall-s4)
+    (s8 #'unmarshall-s8)
     (float4 #'ieee-floats:decode-float32)
     (float8 #'ieee-floats:decode-float64)))
 
+(defun pack (octets n)
+  "Make a vector of n-octet integers out of an octets vector."
+  (if (= n 1)
+      octets
+      (let* ((m (ceiling (length octets) n))
+	     (result (make-array m))
+	     (byte-indexes (byte-indexes (* n 8) *endianness*)))
+	(loop for i below m
+	      do (loop for bi in byte-indexes
+		       for j from 0
+		       do (setf (ldb (byte 8 bi) (aref result i)) (aref octets (+ (* i n) j)))))
+	result)))
+
+(defun unpack (vector n)
+  "Inverse of pack."
+  (if (= n 1)
+      vector
+      (let ((result (make-array (* n (length vector)) :element-type '(unsigned-byte 8)))
+	    (byte-indexes (byte-indexes (* n 8) *endianness*)))
+	(loop with i = 0
+	      for e across vector
+	      do (dolist (bi byte-indexes)
+		   (setf (aref result i) (ldb (byte 8 bi) e))
+		   (incf i)))
+	result)))
+
 (define-binary-type vector (size type)
   (:reader (in)
-	   (let ((arr (make-array size))
-		 (stream-byte-size (ceiling (bits-per-byte-of-stream in) 8))
-		 (unmarshaller (unmarshaller type)))
-	     ;; if stream element has the same size as type then
-	     ;; read-sequence + unmarshall else read one value at a
-	     ;; time
-	     (cond ((= stream-byte-size (type-size type))
-		    (read-sequence arr in)
-		    (when (functionp unmarshaller)
-		      (dotimes (i size)
-			(setf (aref arr i) (funcall unmarshaller (aref arr i))))))
-		   (t
-		    (dotimes (i size)
-		      (setf (aref arr i) (read-value type in)))))
-	     arr))
+	   (assert (equal (stream-element-type in) '(unsigned-byte 8)))
+	   (let* ((type-size (type-size type))
+		  (octets (make-array (* size type-size) :element-type '(unsigned-byte 8)))
+		  (unmarshaller (unmarshaller type)))
+	     (read-sequence octets in)
+	     (let ((arr (pack octets type-size)))
+	       (when (functionp unmarshaller)
+		 (dotimes (i size)
+		   (setf (aref arr i) (funcall unmarshaller (aref arr i)))))
+	       arr)))
   (:writer (out value)
-	   (let ((marshaller (marshaller type))
-		 (stream-byte-size (ceiling (bits-per-byte-of-stream out) 8))
+	   (assert (equal (stream-element-type out) '(unsigned-byte 8)))
+	   (let ((type-size (type-size type))
+		 (marshaller (marshaller type))
 		 (size (length value)))
-	     (cond ((= stream-byte-size (type-size type))
-		    (if (functionp marshaller)
-			(let ((arr (make-array size :element-type (stream-element-type out))))
-			  (dotimes (i size)
-			    (setf (aref arr i) (funcall marshaller (aref value i))))
-			  (write-sequence arr out))
-			(write-sequence value out)))
-		   (t
-		    (loop for e across value
-			  do (write-value type out e))))))
+	     (when (functionp marshaller)
+	       (dotimes (i size)
+		 (setf (aref value i) (funcall marshaller (aref value i)))))
+	     (write-sequence (unpack value type-size) out)))
   (:size () (* size (type-size type))))
 
 ;;; Strings
