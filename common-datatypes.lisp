@@ -129,11 +129,12 @@
 	   (assert (equal (stream-element-type out) '(unsigned-byte 8)))
 	   (let ((type-size (type-size type))
 		 (marshaller (marshaller type))
-		 (size (length value)))
+		 (size (length value))
+		 (arr (alexandria:copy-array value)))
 	     (when (functionp marshaller)
 	       (dotimes (i size)
-		 (setf (aref value i) (funcall marshaller (aref value i)))))
-	     (write-sequence (unpack value type-size) out)))
+		 (setf (aref arr i) (funcall marshaller (aref arr i)))))
+	     (write-sequence (unpack arr type-size) out)))
   (:size () (* size (type-size type))))
 
 ;;; Strings
