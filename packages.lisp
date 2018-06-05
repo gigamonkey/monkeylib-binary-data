@@ -2,11 +2,9 @@
 ;; Copyright (c) 2005, Gigamonkeys Consulting All rights reserved.
 ;;
 
-(in-package :cl-user)
-
-(defpackage :com.gigamonkeys.binary-data
+(defpackage :binary-data
   (:use :common-lisp :alexandria)
-  (:nicknames :binary-data)
+  (:nicknames :bin-data)
   (:export :define-binary-class
            :define-tagged-binary-class
            :define-binary-type
@@ -22,8 +20,8 @@
            :current-binary-object
            :+null+))
 
-(defpackage :com.gigamonkeys.binary-data.common-datatypes
-  (:use :common-lisp :com.gigamonkeys.binary-data)
+(defpackage :binary-data.common-datatypes
+  (:use :common-lisp :binary-data)
   (:export
    :*endianness*
    :integer

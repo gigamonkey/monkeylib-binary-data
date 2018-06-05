@@ -2,8 +2,7 @@
 ;; Copyright (c) 2005-2011, Peter Seibel. All rights reserved.
 ;;
 
-(defsystem com.gigamonkeys.binary-data
-  :name "binary-data"
+(asdf:defsystem binary-data
   :description "Library for reading and writing binary data."
   :author "Peter Seibel <peter@gigamonkeys.com>"
   :components

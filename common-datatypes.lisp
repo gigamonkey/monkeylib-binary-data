@@ -2,7 +2,7 @@
 ;; Copyright (c) 2005, Gigamonkeys Consulting All rights reserved.
 ;;
 
-(in-package :com.gigamonkeys.binary-data.common-datatypes)
+(in-package :binary-data.common-datatypes)
 
 (defparameter *endianness* :little
   "Sets unsigned intergers read/write endianness. Should be one of
