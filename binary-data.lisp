@@ -2,7 +2,7 @@
 ;; Copyright (c) 2005, Gigamonkeys Consulting All rights reserved.
 ;;
 
-(in-package :binary-data)
+(in-package :binary-io)
 
 (defvar *in-progress-objects* nil)
 

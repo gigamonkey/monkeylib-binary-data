@@ -2,9 +2,8 @@
 ;; Copyright (c) 2005, Gigamonkeys Consulting All rights reserved.
 ;;
 
-(defpackage :binary-data
+(defpackage :binary-io
   (:use :common-lisp :alexandria)
-  (:nicknames :bin-data)
   (:export :define-binary-class
            :define-tagged-binary-class
            :define-binary-type
@@ -20,8 +19,8 @@
            :current-binary-object
            :+null+))
 
-(defpackage :binary-data.common-datatypes
-  (:use :common-lisp :binary-data)
+(defpackage :binary-io.common-datatypes
+  (:use :common-lisp :binary-io)
   (:export
    :*endianness*
    :integer
