@@ -68,15 +68,14 @@
   (:writer (out value) (write-value 'u8 out (ieee-floats:encode-float64 value)))
   (:size () (type-size 'u8)))
 
-;;; Vectors
 (defun marshaller (type)
   (case type
     (s1 #'marshall-s1)
     (s2 #'marshall-s2)
     (s4 #'marshall-s4)
     (s8 #'marshall-s8)
-    (float4 #'ieee-floats:encode-float32)
-    (float8 #'ieee-floats:encode-float64)))
+    (float4 #'(lambda (x) (ieee-floats:encode-float32 (float x 0f0))))
+    (float8 #'(lambda (x) (ieee-floats:encode-float64 (float x 0d0))))))
 
 (defun unmarshaller (type)
   (case type
@@ -87,6 +86,7 @@
     (float4 #'ieee-floats:decode-float32)
     (float8 #'ieee-floats:decode-float64)))
 
+;;; Vectors
 (defun pack (octets n)
   "Make a vector of n-octet integers out of an octets vector."
   (if (= n 1)

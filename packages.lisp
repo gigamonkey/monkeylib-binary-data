@@ -35,6 +35,8 @@
    :float
    :float4
    :float8
+   :marshaller
+   :unmarshaller
    :vector
    :generic-string
    :generic-terminated-string
