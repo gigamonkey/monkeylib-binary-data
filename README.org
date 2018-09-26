@@ -3,7 +3,7 @@
 This library should be a drop in replacement for monkeylib-binary-data
 described in Peter Seibel's excellent book: you should start [[http://gigamonkeys.com/book/practical-parsing-binary-files.html][here]].
 
-It also contains the following optionals enhancements:
+It also contains the following optionals enhancements.
 ** definition/access of octet size of objects
    When defining a new binary-type, in addition to =:reader= and
    =:writer= definition, you can set a =:size= to calculate the octet
@@ -33,7 +33,7 @@ It also contains the following optionals enhancements:
 (type-size 'u2) ;; -> 2
 #+END_SRC
 
-   There is also an =object-size= method for binary class:
+   There is also an =object-size= method for binary class.
 #+BEGIN_SRC lisp
 (define-binary-class test-size ()
   ((a u2)
@@ -48,4 +48,6 @@ It also contains the following optionals enhancements:
 (define-binary-class foo-header ()
   ((tag (8bit-string :length 4 :terminator #\Nul) "FOO")
    (counter u2 0)))
+
+(tag (make-instance 'foo-header)) ;; -> "FOO"
 #+END_SRC
