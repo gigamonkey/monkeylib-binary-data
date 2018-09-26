@@ -218,8 +218,11 @@
 (defun mklist (x) (if (listp x) x (list x)))
 
 (defun slot->defclass-slot (spec)
-  (let ((name (first spec)))
-    `(,name :initarg ,(as-keyword name) :accessor ,name)))
+  (let ((name (first spec))
+	(initform (third spec)))
+    (if initform
+	`(,name :initarg ,(as-keyword name) :initform ,initform :accessor ,name)
+	`(,name :initarg ,(as-keyword name) :accessor ,name))))
 
 (defun slot->read-value (spec stream)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
