@@ -57,17 +57,6 @@
 (build-signed s4 u4 32)
 (build-signed s8 u8 64)
 
-;;; IEEE floats on top of unsigned
-(define-binary-type float4 ()
-  (:reader (in) (ieee-floats:decode-float32 (read-value 'u4 in)))
-  (:writer (out value) (write-value 'u4 out (ieee-floats:encode-float32 value)))
-  (:size () (type-size 'u4)))
-
-(define-binary-type float8 ()
-  (:reader (in) (ieee-floats:decode-float64 (read-value 'u8 in)))
-  (:writer (out value) (write-value 'u8 out (ieee-floats:encode-float64 value)))
-  (:size () (type-size 'u8)))
-
 (defun marshaller (type)
   (case type
     (s1 #'marshall-s1)
@@ -85,6 +74,17 @@
     (s8 #'unmarshall-s8)
     (float4 #'ieee-floats:decode-float32)
     (float8 #'ieee-floats:decode-float64)))
+
+;;; IEEE floats on top of unsigned
+(define-binary-type float4 ()
+  (:reader (in) (funcall (unmarshaller 'float4) (read-value 'u4 in)))
+  (:writer (out value) (write-value 'u4 out (funcall (marshaller 'float4) value)))
+  (:size () (type-size 'u4)))
+
+(define-binary-type float8 ()
+  (:reader (in) (funcall (unmarshaller 'float8) (read-value 'u8 in)))
+  (:writer (out value) (write-value 'u8 out (funcall (marshaller 'float8) value)))
+  (:size () (type-size 'u8)))
 
 ;;; Vectors
 (defun pack (octets n)
