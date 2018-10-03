@@ -17,16 +17,16 @@
 ;;; Unsigned integers
 (define-binary-type unsigned-integer (bits)
   (:reader (fd)
-	   (assert (equal (stream-element-type fd) '(unsigned-byte 8)))
-	   (let ((byte-indexes (byte-indexes bits *endianness*))
-		 (value 0))
-	     (dolist (i byte-indexes value)
-	       (setf (ldb (byte 8 i) value) (read-byte fd)))))
+           (assert (equal (stream-element-type fd) '(unsigned-byte 8)))
+           (let ((byte-indexes (byte-indexes bits *endianness*))
+                 (value 0))
+             (dolist (i byte-indexes value)
+               (setf (ldb (byte 8 i) value) (read-byte fd)))))
   (:writer (fd value)
-	   (assert (equal (stream-element-type fd) '(unsigned-byte 8)))
-	   (let ((byte-indexes (byte-indexes bits *endianness*)))
-	     (dolist (i byte-indexes)
-	       (write-byte (ldb (byte 8 i) value) fd))))
+           (assert (equal (stream-element-type fd) '(unsigned-byte 8)))
+           (let ((byte-indexes (byte-indexes bits *endianness*)))
+             (dolist (i byte-indexes)
+               (write-byte (ldb (byte 8 i) value) fd))))
   (:size () (ceiling bits 8)))
 
 (define-binary-type u1 () (unsigned-integer :bits 8))
@@ -37,20 +37,20 @@
 ;;; Signed on top of unsigned
 (defmacro build-signed (signed-type unsigned-type bits)
   (let ((marshall-name (intern (format nil "MARSHALL-~a" signed-type)))
-	(unmarshall-name (intern (format nil "UNMARSHALL-~a" signed-type)))
-	(mask (ash 1 (1- bits)))
-	(maximum (ash 1 bits)))
+        (unmarshall-name (intern (format nil "UNMARSHALL-~a" signed-type)))
+        (mask (ash 1 (1- bits)))
+        (maximum (ash 1 bits)))
     `(progn
        (defun ,unmarshall-name (x)
-	 (declare (type (unsigned-byte ,bits) x))
-	 (+ (- (logand x ,mask)) (logand x (lognot ,mask))))
+         (declare (type (unsigned-byte ,bits) x))
+         (+ (- (logand x ,mask)) (logand x (lognot ,mask))))
        (defun ,marshall-name (x)
-	 (declare (type (signed-byte ,bits) x))
-	 (if (>= x 0) x (+ x ,maximum)))
+         (declare (type (signed-byte ,bits) x))
+         (if (>= x 0) x (+ x ,maximum)))
        (define-binary-type ,signed-type ()
-	 (:reader (fd) (,unmarshall-name (read-value ',unsigned-type fd)))
-	 (:writer (fd value) (write-value ',unsigned-type fd (,marshall-name value)))
-	 (:size () (type-size ',unsigned-type))))))
+         (:reader (fd) (,unmarshall-name (read-value ',unsigned-type fd)))
+         (:writer (fd value) (write-value ',unsigned-type fd (,marshall-name value)))
+         (:size () (type-size ',unsigned-type))))))
 
 (build-signed s1 u1 8)
 (build-signed s2 u2 16)
@@ -92,85 +92,85 @@
   (if (= n 1)
       octets
       (let* ((m (ceiling (length octets) n))
-	     (result (make-array m))
-	     (byte-indexes (byte-indexes (* n 8) *endianness*)))
-	(loop for i below m
-	      do (loop for bi in byte-indexes
-		       for j from 0
-		       do (setf (ldb (byte 8 bi) (aref result i)) (aref octets (+ (* i n) j)))))
-	result)))
+             (result (make-array m))
+             (byte-indexes (byte-indexes (* n 8) *endianness*)))
+        (loop for i below m
+              do (loop for bi in byte-indexes
+                       for j from 0
+                       do (setf (ldb (byte 8 bi) (aref result i)) (aref octets (+ (* i n) j)))))
+        result)))
 
 (defun unpack (vector n)
   "Inverse of pack."
   (if (= n 1)
       vector
       (let ((result (make-array (* n (length vector)) :element-type '(unsigned-byte 8)))
-	    (byte-indexes (byte-indexes (* n 8) *endianness*)))
-	(loop with i = 0
-	      for e across vector
-	      do (dolist (bi byte-indexes)
-		   (setf (aref result i) (ldb (byte 8 bi) e))
-		   (incf i)))
-	result)))
+            (byte-indexes (byte-indexes (* n 8) *endianness*)))
+        (loop with i = 0
+              for e across vector
+              do (dolist (bi byte-indexes)
+                   (setf (aref result i) (ldb (byte 8 bi) e))
+                   (incf i)))
+        result)))
 
 (define-binary-type vector (size type)
   (:reader (in)
-	   (assert (equal (stream-element-type in) '(unsigned-byte 8)))
-	   (let* ((type-size (type-size type))
-		  (octets (make-array (* size type-size) :element-type '(unsigned-byte 8)))
-		  (unmarshaller (unmarshaller type)))
-	     (read-sequence octets in)
-	     (let ((arr (pack octets type-size)))
-	       (when (functionp unmarshaller)
-		 (dotimes (i size)
-		   (setf (aref arr i) (funcall unmarshaller (aref arr i)))))
-	       arr)))
+           (assert (equal (stream-element-type in) '(unsigned-byte 8)))
+           (let* ((type-size (type-size type))
+                  (octets (make-array (* size type-size) :element-type '(unsigned-byte 8)))
+                  (unmarshaller (unmarshaller type)))
+             (read-sequence octets in)
+             (let ((arr (pack octets type-size)))
+               (when (functionp unmarshaller)
+                 (dotimes (i size)
+                   (setf (aref arr i) (funcall unmarshaller (aref arr i)))))
+               arr)))
   (:writer (out value)
-	   (assert (equal (stream-element-type out) '(unsigned-byte 8)))
-	   (let ((type-size (type-size type))
-		 (marshaller (marshaller type))
-		 (size (length value))
-		 (arr (alexandria:copy-array value)))
-	     (when (functionp marshaller)
-	       (dotimes (i size)
-		 (setf (aref arr i) (funcall marshaller (aref arr i)))))
-	     (write-sequence (unpack arr type-size) out)))
+           (assert (equal (stream-element-type out) '(unsigned-byte 8)))
+           (let ((type-size (type-size type))
+                 (marshaller (marshaller type))
+                 (size (length value))
+                 (arr (alexandria:copy-array value)))
+             (when (functionp marshaller)
+               (dotimes (i size)
+                 (setf (aref arr i) (funcall marshaller (aref arr i)))))
+             (write-sequence (unpack arr type-size) out)))
   (:size () (* size (type-size type))))
 
 ;;; Strings
 (define-binary-type generic-string (length character-type)
   (:reader (in)
-	   (let ((string (make-string length)))
-	     (dotimes (i length)
-	       (setf (char string i) (read-value character-type in)))
-	     string))
+           (let ((string (make-string length)))
+             (dotimes (i length)
+               (setf (char string i) (read-value character-type in)))
+             string))
   (:writer (out string)
-	   (dotimes (i length)
-	     (write-value character-type out (char string i))))
+           (dotimes (i length)
+             (write-value character-type out (char string i))))
   (:size () (* length (type-size character-type))))
 
 (define-binary-type generic-terminated-string (terminator character-type)
   (:reader (in)
-	   (with-output-to-string (s)
-	     (loop for char = (read-value character-type in)
-		   until (char= char terminator) do (write-char char s))))
+           (with-output-to-string (s)
+             (loop for char = (read-value character-type in)
+                   until (char= char terminator) do (write-char char s))))
   (:writer (out string)
-	   (loop for char across string
-		 do (write-value character-type out char)
-		 finally (write-value character-type out terminator))))
+           (loop for char across string
+                 do (write-value character-type out char)
+                 finally (write-value character-type out terminator))))
 
 ;;; ISO-8859-1 strings
 
 (define-binary-type iso-8859-1-char ()
   (:reader (in)
-	   (let ((code (read-byte in)))
-	     (or (code-char code)
-		 (error "Character code ~d not supported" code))))
+           (let ((code (read-byte in)))
+             (or (code-char code)
+                 (error "Character code ~d not supported" code))))
   (:writer (out char)
-	   (let ((code (char-code char)))
-	     (if (<= 0 code #xff)
-		 (write-byte code out)
-		 (error "Illegal character for iso-8859-1 encoding: character: ~c with code: ~d" char code))))
+           (let ((code (char-code char)))
+             (if (<= 0 code #xff)
+                 (write-byte code out)
+                 (error "Illegal character for iso-8859-1 encoding: character: ~c with code: ~d" char code))))
   (:size () 1))
 
 (define-binary-type iso-8859-1-string (length)
@@ -191,15 +191,15 @@
 
 (define-binary-type ucs-2-char (swap)
   (:reader (in)
-	   (let ((code (read-value 'u2 in)))
-	     (when swap (setf code (swap-bytes code)))
-	     (or (code-char code) (error "Character code ~d not supported" code))))
+           (let ((code (read-value 'u2 in)))
+             (when swap (setf code (swap-bytes code)))
+             (or (code-char code) (error "Character code ~d not supported" code))))
   (:writer (out char)
-	   (let ((code (char-code char)))
-	     (unless (<= 0 code #xffff)
-	       (error "Illegal character for ucs-2 encoding: ~c with char-code: ~d" char code))
-	     (when swap (setf code (swap-bytes code)))
-	     (write-value 'u2 out code)))
+           (let ((code (char-code char)))
+             (unless (<= 0 code #xffff)
+               (error "Illegal character for ucs-2 encoding: ~c with char-code: ~d" char code))
+             (when swap (setf code (swap-bytes code)))
+             (write-value 'u2 out code)))
   (:size () 2))
 
 (defun swap-bytes (code)
@@ -218,38 +218,38 @@
 
 (define-binary-type ucs-2-string (length)
   (:reader (in)
-	   (let ((byte-order-mark (read-value 'u2 in))
-		 (characters (1- (/ length 2))))
-	     (read-value
-	      'generic-string in
-	      :length characters
-	      :character-type (ucs-2-char-type byte-order-mark))))
+           (let ((byte-order-mark (read-value 'u2 in))
+                 (characters (1- (/ length 2))))
+             (read-value
+              'generic-string in
+              :length characters
+              :character-type (ucs-2-char-type byte-order-mark))))
   (:writer (out string)
-	   (write-value 'u2 out #xfeff)
-	   (write-value
-	    'generic-string out string
-	    :length (length string)
-	    :character-type (ucs-2-char-type #xfeff)))
+           (write-value 'u2 out #xfeff)
+           (write-value
+            'generic-string out string
+            :length (length string)
+            :character-type (ucs-2-char-type #xfeff)))
   (:size () (type-size 'generic-string
-		       :length length
-		       :character-type 'ucs-2-char)))
+                       :length length
+                       :character-type 'ucs-2-char)))
 
 (define-binary-type ucs-2-terminated-string (terminator)
   (:reader (in)
-	   (let ((byte-order-mark (read-value 'u2 in)))
-	     (read-value
-	      'generic-terminated-string in
-	      :terminator terminator
-	      :character-type (ucs-2-char-type byte-order-mark))))
+           (let ((byte-order-mark (read-value 'u2 in)))
+             (read-value
+              'generic-terminated-string in
+              :terminator terminator
+              :character-type (ucs-2-char-type byte-order-mark))))
   (:writer (out string)
-	   (write-value 'u2 out #xfeff)
-	   (write-value
-	    'generic-terminated-string out string
-	    :terminator terminator
-	    :character-type (ucs-2-char-type #xfeff)))
+           (write-value 'u2 out #xfeff)
+           (write-value
+            'generic-terminated-string out string
+            :terminator terminator
+            :character-type (ucs-2-char-type #xfeff)))
   (:size () (type-size 'generic-terminated-string
-		       :terminator terminator
-		       :character-type 'ucs-2-char)))
+                       :terminator terminator
+                       :character-type 'ucs-2-char)))
 
 ;;; Fix length with terminator ASCII strings. This code should work
 ;;; for 8bit character be it ASCII, ISO 8859 or UTF-8 sans extensions.

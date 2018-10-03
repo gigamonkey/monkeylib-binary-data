@@ -7,12 +7,12 @@
   (:export :define-binary-class
            :define-tagged-binary-class
            :define-binary-type
-	   :define-enumeration
-	   :define-bitfield
+           :define-enumeration
+           :define-bitfield
            :read-value
            :write-value
-	   :type-size
-	   :object-size
+           :type-size
+           :object-size
            :*in-progress-objects*
            :parent-of-type
            :immediate-parent

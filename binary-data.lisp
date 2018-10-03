@@ -49,51 +49,51 @@
   (with-gensyms (type stream value)
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        (defmethod read-value ((,type (eql ',name)) ,stream &key ,@args)
-	 (declare (ignorable ,@args))
-	 ,(type-reader-body name spec stream))
+         (declare (ignorable ,@args))
+         ,(type-reader-body name spec stream))
        (defmethod write-value ((,type (eql ',name)) ,stream ,value &key ,@args)
-	 (declare (ignorable ,@args))
-	 ,(type-writer-body name spec stream value))
+         (declare (ignorable ,@args))
+         ,(type-writer-body name spec stream value))
        (defmethod type-size ((,type (eql ',name)) &key ,@args)
-	 (declare (ignorable ,@args))
-	 ,(type-size-body name spec)))))
+         (declare (ignorable ,@args))
+         ,(type-size-body name spec)))))
 
 (defun rw-alistp (alist)
   "Is alist a ((:reader...) (:writer...) (:size...)) kind of alist."
   (and (listp alist)
        (every #'consp alist)
        (or (assoc :reader alist)
-	   (assoc :writer alist)
-	   (assoc :size alist))))
+           (assoc :writer alist)
+           (assoc :size alist))))
 
 (defun type-reader-body (name spec stream)
   (if (rw-alistp spec)
       (let ((reader-spec (assoc :reader spec)))
-	(if reader-spec
-	    (destructuring-bind ((in) &body body) (cdr reader-spec)
-	      `(let ((,in ,stream)) ,@body))
-	    `(error "No reader defined for type ~s" ',name)))
+        (if reader-spec
+            (destructuring-bind ((in) &body body) (cdr reader-spec)
+              `(let ((,in ,stream)) ,@body))
+            `(error "No reader defined for type ~s" ',name)))
       (destructuring-bind (type &rest args) (mklist (first spec))
-	`(read-value ',type ,stream ,@args))))
+        `(read-value ',type ,stream ,@args))))
 
 (defun type-writer-body (name spec stream value)
   (if (rw-alistp spec)
       (let ((writer-spec (assoc :writer spec)))
-	(if writer-spec
-	    (destructuring-bind ((out v) &body body) (cdr writer-spec)
-	      `(let ((,out ,stream) (,v ,value)) ,@body))
-	    `(error "No writer defined for type ~s" ',name)))
+        (if writer-spec
+            (destructuring-bind ((out v) &body body) (cdr writer-spec)
+              `(let ((,out ,stream) (,v ,value)) ,@body))
+            `(error "No writer defined for type ~s" ',name)))
       (destructuring-bind (type &rest args) (mklist (first spec))
-	`(write-value ',type ,stream ,value ,@args))))
+        `(write-value ',type ,stream ,value ,@args))))
 
 (defun type-size-body (name spec)
   (if (rw-alistp spec)
       (let ((size-spec (assoc :size spec)))
-	(if size-spec
-	    `(progn ,@(cddr size-spec))
-	    `(error "No size defined for type ~s" ',name)))
+        (if size-spec
+            `(progn ,@(cddr size-spec))
+            `(error "No size defined for type ~s" ',name)))
       (destructuring-bind (type &rest args) (mklist (first spec))
-	`(type-size ',type ,@args))))
+        `(type-size ',type ,@args))))
 
 ;;; Enumerations
 
@@ -101,28 +101,28 @@
   (loop with number = 0
      for entry in mapping collect
        (typecase entry
-	 (symbol
-	  (prog1 (list entry number) (incf number)))
-	 (cons
-	  (let ((actual-number (or (second entry) number)))
-	    (prog1 (list (first entry) actual-number)
-	      (setf number (1+ actual-number))))))))
+         (symbol
+          (prog1 (list entry number) (incf number)))
+         (cons
+          (let ((actual-number (or (second entry) number)))
+            (prog1 (list (first entry) actual-number)
+              (setf number (1+ actual-number))))))))
 
 (defmacro define-enumeration (name (type) &rest mapping)
   (let ((mapping (normalize-mapping mapping)))
     (alexandria:with-gensyms (in out value)
       `(define-binary-type ,name ()
-	 (:reader (,in)
-		  (let ((,value (read-value ',type ,in)))
-		    (case ,value
-		      ,@(loop for (symbol number) in mapping collect `(,number ',symbol))
-		      (otherwise (error "No ~a for value: ~a" ',name ,value)))))
-	 (:writer (,out ,value)
-		  (write-value ',type ,out
-			       (case ,value
-				 ,@(loop for (symbol number) in mapping collect `(,symbol ,number))
-				 (otherwise (error "~a not a legal ~a" ,value ',name)))))
-	 (:size () (type-size ',type))))))
+         (:reader (,in)
+                  (let ((,value (read-value ',type ,in)))
+                    (case ,value
+                      ,@(loop for (symbol number) in mapping collect `(,number ',symbol))
+                      (otherwise (error "No ~a for value: ~a" ',name ,value)))))
+         (:writer (,out ,value)
+                  (write-value ',type ,out
+                               (case ,value
+                                 ,@(loop for (symbol number) in mapping collect `(,symbol ,number))
+                                 (otherwise (error "~a not a legal ~a" ,value ',name)))))
+         (:size () (type-size ',type))))))
 
 ;;; Bitfields
 ;;;
@@ -168,8 +168,8 @@
            ,@(mapcar #'(lambda (x) (slot->write-value x streamvar)) slots)))
 
        (defmethod object-size + ((,objectvar ,name))
-	 (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
-	   (+ ,@(mapcar #'(lambda (x) (slot->object-size x)) slots)))))))
+         (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
+           (+ ,@(mapcar #'(lambda (x) (slot->object-size x)) slots)))))))
 
 (defmacro define-binary-class (name (&rest superclasses) slots)
   (with-gensyms (objectvar streamvar)
@@ -219,10 +219,10 @@
 
 (defun slot->defclass-slot (spec)
   (let ((name (first spec))
-	(initform (third spec)))
+        (initform (third spec)))
     (if initform
-	`(,name :initarg ,(as-keyword name) :initform ,initform :accessor ,name)
-	`(,name :initarg ,(as-keyword name) :accessor ,name))))
+        `(,name :initarg ,(as-keyword name) :initform ,initform :accessor ,name)
+        `(,name :initarg ,(as-keyword name) :accessor ,name))))
 
 (defun slot->read-value (spec stream)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
