@@ -4,7 +4,10 @@
 
 (in-package :binary-io.common-datatypes)
 
-(defparameter *endianness* :little
+(defparameter *endianness*
+  #+little-endian :little
+  #+big-endian :big
+  #-(or little-endian big-endian) :little
   "Sets unsigned intergers read/write endianness. Should be one of
   :little or :big.")
 
