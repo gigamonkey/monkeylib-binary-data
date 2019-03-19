@@ -29,6 +29,8 @@
   (:method-combination +)
   (:documentation "Returns the octet size of an object."))
 
+;;; Define binary-type's interfaces for binary-class
+
 (defmethod read-value ((type symbol) stream &key)
   (let ((object (make-instance type)))
     (read-object object stream)
@@ -38,10 +40,12 @@
   (assert (typep value type))
   (write-object value stream))
 
-(defmethod object-size + ((type symbol))
-  "Helper to have an object size from its binary class name."
-  (let ((object (make-instance type)))
-    (object-size object)))
+(defmethod type-size (object &key)
+  "Defaults to low level object size."
+  (object-size object))
+
+(defmethod type-size ((type symbol) &key)
+  (object-size (make-instance type)))
 
 ;;; Binary types
 

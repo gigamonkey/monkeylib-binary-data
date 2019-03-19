@@ -33,13 +33,13 @@ It also contains the following optionals enhancements.
 (type-size 'u2) ;; -> 2
 #+END_SRC
 
-   There is also an =object-size= method for binary class.
+   =type-size= method also works for binary class.
 #+BEGIN_SRC lisp
 (define-binary-class test-size ()
   ((a u2)
    (b u2)))
 
-(object-size 'test-size) ;; -> 4
+(type-size 'test-size) ;; -> 4
 #+END_SRC
 ** optional initform for slots
    You can precise an optional initform for a slot as a third value in
