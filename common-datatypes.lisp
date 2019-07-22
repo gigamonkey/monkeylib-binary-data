@@ -61,7 +61,8 @@
 (build-signed s8 u8 64)
 
 (defun marshaller (type)
-  (case type
+  (ecase type
+    ((u1 u2 u4 u8) #'identity)
     (s1 #'marshall-s1)
     (s2 #'marshall-s2)
     (s4 #'marshall-s4)
@@ -70,7 +71,8 @@
     (float8 #'(lambda (x) (ieee-floats:encode-float64 (float x 0d0))))))
 
 (defun unmarshaller (type)
-  (case type
+  (ecase type
+    ((u1 u2 u4 u8) #'identity)
     (s1 #'unmarshall-s1)
     (s2 #'unmarshall-s2)
     (s4 #'unmarshall-s4)
