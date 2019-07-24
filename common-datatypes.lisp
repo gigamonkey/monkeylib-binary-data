@@ -61,8 +61,9 @@
 (build-signed s8 u8 64)
 
 (defun marshaller (type)
-  (ecase type
-    ((u1 u2 u4 u8) #'identity)
+  "Return the marshalling function for TYPE. Can return NIL if nothing
+has to be done (this should be checked by the caller)."
+  (case type
     (s1 #'marshall-s1)
     (s2 #'marshall-s2)
     (s4 #'marshall-s4)
@@ -71,8 +72,9 @@
     (float8 #'(lambda (x) (ieee-floats:encode-float64 (float x 0d0))))))
 
 (defun unmarshaller (type)
-  (ecase type
-    ((u1 u2 u4 u8) #'identity)
+  "Return the unmarshalling function for TYPE. Can return NIL if
+nothing has to be done (this should be checked by the caller)."
+  (case type
     (s1 #'unmarshall-s1)
     (s2 #'unmarshall-s2)
     (s4 #'unmarshall-s4)
