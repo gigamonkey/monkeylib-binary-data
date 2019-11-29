@@ -23,20 +23,8 @@
   (:export
    :*endianness*
    :integer
-   :u1
-   :u2
-   :u4
-   :u8
-   :s1
-   :s2
-   :s4
-   :s8
-   :float
-   :float4
-   :float8
    :marshaller
    :unmarshaller
-   :vector
    :generic-string
    :generic-terminated-string
    :iso-8859-1-char

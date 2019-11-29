@@ -32,10 +32,10 @@
                (write-byte (ldb (byte 8 i) value) fd))))
   (:size () (ceiling bits 8)))
 
-(define-binary-type u1 () (unsigned-integer :bits 8))
-(define-binary-type u2 () (unsigned-integer :bits 16))
-(define-binary-type u4 () (unsigned-integer :bits 32))
-(define-binary-type u8 () (unsigned-integer :bits 64))
+(define-binary-type :u1 () (unsigned-integer :bits 8))
+(define-binary-type :u2 () (unsigned-integer :bits 16))
+(define-binary-type :u4 () (unsigned-integer :bits 32))
+(define-binary-type :u8 () (unsigned-integer :bits 64))
 
 ;;; Signed on top of unsigned
 (defmacro build-signed (signed-type unsigned-type bits)
@@ -55,43 +55,43 @@
          (:writer (fd value) (write-value ',unsigned-type fd (,marshall-name value)))
          (:size () (type-size ',unsigned-type))))))
 
-(build-signed s1 u1 8)
-(build-signed s2 u2 16)
-(build-signed s4 u4 32)
-(build-signed s8 u8 64)
+(build-signed :s1 :u1 8)
+(build-signed :s2 :u2 16)
+(build-signed :s4 :u4 32)
+(build-signed :s8 :u8 64)
 
 (defun marshaller (type)
   "Return the marshalling function for TYPE. Can return NIL if nothing
 has to be done (this should be checked by the caller)."
   (case type
-    (s1 #'marshall-s1)
-    (s2 #'marshall-s2)
-    (s4 #'marshall-s4)
-    (s8 #'marshall-s8)
-    (float4 #'(lambda (x) (ieee-floats:encode-float32 (float x 0f0))))
-    (float8 #'(lambda (x) (ieee-floats:encode-float64 (float x 0d0))))))
+    (:s1 #'marshall-s1)
+    (:s2 #'marshall-s2)
+    (:s4 #'marshall-s4)
+    (:s8 #'marshall-s8)
+    (:float4 #'(lambda (x) (ieee-floats:encode-float32 (float x 0f0))))
+    (:float8 #'(lambda (x) (ieee-floats:encode-float64 (float x 0d0))))))
 
 (defun unmarshaller (type)
   "Return the unmarshalling function for TYPE. Can return NIL if
 nothing has to be done (this should be checked by the caller)."
   (case type
-    (s1 #'unmarshall-s1)
-    (s2 #'unmarshall-s2)
-    (s4 #'unmarshall-s4)
-    (s8 #'unmarshall-s8)
-    (float4 #'ieee-floats:decode-float32)
-    (float8 #'ieee-floats:decode-float64)))
+    (:s1 #'unmarshall-s1)
+    (:s2 #'unmarshall-s2)
+    (:s4 #'unmarshall-s4)
+    (:s8 #'unmarshall-s8)
+    (:float4 #'ieee-floats:decode-float32)
+    (:float8 #'ieee-floats:decode-float64)))
 
 ;;; IEEE floats on top of unsigned
-(define-binary-type float4 ()
-  (:reader (in) (funcall (unmarshaller 'float4) (read-value 'u4 in)))
-  (:writer (out value) (write-value 'u4 out (funcall (marshaller 'float4) value)))
-  (:size () (type-size 'u4)))
+(define-binary-type :float4 ()
+  (:reader (in) (funcall (unmarshaller :float4) (read-value :u4 in)))
+  (:writer (out value) (write-value :u4 out (funcall (marshaller :float4) value)))
+  (:size () (type-size :u4)))
 
-(define-binary-type float8 ()
-  (:reader (in) (funcall (unmarshaller 'float8) (read-value 'u8 in)))
-  (:writer (out value) (write-value 'u8 out (funcall (marshaller 'float8) value)))
-  (:size () (type-size 'u8)))
+(define-binary-type :float8 ()
+  (:reader (in) (funcall (unmarshaller :float8) (read-value :u8 in)))
+  (:writer (out value) (write-value :u8 out (funcall (marshaller :float8) value)))
+  (:size () (type-size :u8)))
 
 ;;; Vectors
 (defun pack (octets n)
@@ -120,7 +120,7 @@ nothing has to be done (this should be checked by the caller)."
                    (incf i)))
         result)))
 
-(define-binary-type vector (size type)
+(define-binary-type :vector (size type)
   (:reader (in)
            (assert (equal (stream-element-type in) '(unsigned-byte 8)))
            (let* ((type-size (type-size type))
