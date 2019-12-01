@@ -198,7 +198,7 @@ nothing has to be done (this should be checked by the caller)."
 
 (define-binary-type ucs-2-char (swap)
   (:reader (in)
-           (let ((code (read-value 'u2 in)))
+           (let ((code (read-value :u2 in)))
              (when swap (setf code (swap-bytes code)))
              (or (code-char code) (error "Character code ~d not supported" code))))
   (:writer (out char)
@@ -206,7 +206,7 @@ nothing has to be done (this should be checked by the caller)."
              (unless (<= 0 code #xffff)
                (error "Illegal character for ucs-2 encoding: ~c with char-code: ~d" char code))
              (when swap (setf code (swap-bytes code)))
-             (write-value 'u2 out code)))
+             (write-value :u2 out code)))
   (:size () 2))
 
 (defun swap-bytes (code)
@@ -225,14 +225,14 @@ nothing has to be done (this should be checked by the caller)."
 
 (define-binary-type ucs-2-string (length)
   (:reader (in)
-           (let ((byte-order-mark (read-value 'u2 in))
+           (let ((byte-order-mark (read-value :u2 in))
                  (characters (1- (/ length 2))))
              (read-value
               'generic-string in
               :length characters
               :character-type (ucs-2-char-type byte-order-mark))))
   (:writer (out string)
-           (write-value 'u2 out #xfeff)
+           (write-value :u2 out #xfeff)
            (write-value
             'generic-string out string
             :length (length string)
@@ -243,13 +243,13 @@ nothing has to be done (this should be checked by the caller)."
 
 (define-binary-type ucs-2-terminated-string (terminator)
   (:reader (in)
-           (let ((byte-order-mark (read-value 'u2 in)))
+           (let ((byte-order-mark (read-value :u2 in)))
              (read-value
               'generic-terminated-string in
               :terminator terminator
               :character-type (ucs-2-char-type byte-order-mark))))
   (:writer (out string)
-           (write-value 'u2 out #xfeff)
+           (write-value :u2 out #xfeff)
            (write-value
             'generic-terminated-string out string
             :terminator terminator
