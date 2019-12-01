@@ -32,10 +32,10 @@
                (write-byte (ldb (byte 8 i) value) fd))))
   (:size () (ceiling bits 8)))
 
-(define-binary-type :u1 () (unsigned-integer :bits 8))
-(define-binary-type :u2 () (unsigned-integer :bits 16))
-(define-binary-type :u4 () (unsigned-integer :bits 32))
-(define-binary-type :u8 () (unsigned-integer :bits 64))
+(define-binary-type :u8 () (unsigned-integer :bits 8))
+(define-binary-type :u16 () (unsigned-integer :bits 16))
+(define-binary-type :u32 () (unsigned-integer :bits 32))
+(define-binary-type :u64 () (unsigned-integer :bits 64))
 
 ;;; Signed on top of unsigned
 (defmacro build-signed (signed-type unsigned-type bits)
@@ -55,43 +55,43 @@
          (:writer (fd value) (write-value ',unsigned-type fd (,marshall-name value)))
          (:size () (type-size ',unsigned-type))))))
 
-(build-signed :s1 :u1 8)
-(build-signed :s2 :u2 16)
-(build-signed :s4 :u4 32)
-(build-signed :s8 :u8 64)
+(build-signed :s8 :u8 8)
+(build-signed :s16 :u16 16)
+(build-signed :s32 :u32 32)
+(build-signed :s64 :u64 64)
 
 (defun marshaller (type)
   "Return the marshalling function for TYPE. Can return NIL if nothing
 has to be done (this should be checked by the caller)."
   (case type
-    (:s1 #'marshall-s1)
-    (:s2 #'marshall-s2)
-    (:s4 #'marshall-s4)
     (:s8 #'marshall-s8)
-    (:float4 #'(lambda (x) (ieee-floats:encode-float32 (float x 0f0))))
-    (:float8 #'(lambda (x) (ieee-floats:encode-float64 (float x 0d0))))))
+    (:s16 #'marshall-s16)
+    (:s32 #'marshall-s32)
+    (:s64 #'marshall-s64)
+    (:float32 #'(lambda (x) (ieee-floats:encode-float32 (float x 0f0))))
+    (:float64 #'(lambda (x) (ieee-floats:encode-float64 (float x 0d0))))))
 
 (defun unmarshaller (type)
   "Return the unmarshalling function for TYPE. Can return NIL if
 nothing has to be done (this should be checked by the caller)."
   (case type
-    (:s1 #'unmarshall-s1)
-    (:s2 #'unmarshall-s2)
-    (:s4 #'unmarshall-s4)
     (:s8 #'unmarshall-s8)
-    (:float4 #'ieee-floats:decode-float32)
-    (:float8 #'ieee-floats:decode-float64)))
+    (:s16 #'unmarshall-s16)
+    (:s32 #'unmarshall-s32)
+    (:s64 #'unmarshall-s64)
+    (:float32 #'ieee-floats:decode-float32)
+    (:float64 #'ieee-floats:decode-float64)))
 
 ;;; IEEE floats on top of unsigned
-(define-binary-type :float4 ()
-  (:reader (in) (funcall (unmarshaller :float4) (read-value :u4 in)))
-  (:writer (out value) (write-value :u4 out (funcall (marshaller :float4) value)))
-  (:size () (type-size :u4)))
+(define-binary-type :float32 ()
+  (:reader (in) (funcall (unmarshaller :float32) (read-value :u32 in)))
+  (:writer (out value) (write-value :u32 out (funcall (marshaller :float32) value)))
+  (:size () (type-size :u32)))
 
-(define-binary-type :float8 ()
-  (:reader (in) (funcall (unmarshaller :float8) (read-value :u8 in)))
-  (:writer (out value) (write-value :u8 out (funcall (marshaller :float8) value)))
-  (:size () (type-size :u8)))
+(define-binary-type :float64 ()
+  (:reader (in) (funcall (unmarshaller :float64) (read-value :u64 in)))
+  (:writer (out value) (write-value :u64 out (funcall (marshaller :float64) value)))
+  (:size () (type-size :u64)))
 
 ;;; Vectors
 (defun pack (octets n)
@@ -198,7 +198,7 @@ nothing has to be done (this should be checked by the caller)."
 
 (define-binary-type ucs-2-char (swap)
   (:reader (in)
-           (let ((code (read-value :u2 in)))
+           (let ((code (read-value :u16 in)))
              (when swap (setf code (swap-bytes code)))
              (or (code-char code) (error "Character code ~d not supported" code))))
   (:writer (out char)
@@ -206,7 +206,7 @@ nothing has to be done (this should be checked by the caller)."
              (unless (<= 0 code #xffff)
                (error "Illegal character for ucs-2 encoding: ~c with char-code: ~d" char code))
              (when swap (setf code (swap-bytes code)))
-             (write-value :u2 out code)))
+             (write-value :u16 out code)))
   (:size () 2))
 
 (defun swap-bytes (code)
@@ -225,14 +225,14 @@ nothing has to be done (this should be checked by the caller)."
 
 (define-binary-type ucs-2-string (length)
   (:reader (in)
-           (let ((byte-order-mark (read-value :u2 in))
+           (let ((byte-order-mark (read-value :u16 in))
                  (characters (1- (/ length 2))))
              (read-value
               'generic-string in
               :length characters
               :character-type (ucs-2-char-type byte-order-mark))))
   (:writer (out string)
-           (write-value :u2 out #xfeff)
+           (write-value :u16 out #xfeff)
            (write-value
             'generic-string out string
             :length (length string)
@@ -243,13 +243,13 @@ nothing has to be done (this should be checked by the caller)."
 
 (define-binary-type ucs-2-terminated-string (terminator)
   (:reader (in)
-           (let ((byte-order-mark (read-value :u2 in)))
+           (let ((byte-order-mark (read-value :u16 in)))
              (read-value
               'generic-terminated-string in
               :terminator terminator
               :character-type (ucs-2-char-type byte-order-mark))))
   (:writer (out string)
-           (write-value :u2 out #xfeff)
+           (write-value :u16 out #xfeff)
            (write-value
             'generic-terminated-string out string
             :terminator terminator
