@@ -8,6 +8,7 @@
   :components
   ((:file "packages")
    (:file "binary-data" :depends-on ("packages"))
+   #+sbcl (:file "mmap" :depends-on ("packages" "binary-data"))
    (:file "common-datatypes" :depends-on ("packages" "binary-data")))
   :depends-on (alexandria ieee-floats)
   :in-order-to ((test-op (test-op :binary-io/test))))

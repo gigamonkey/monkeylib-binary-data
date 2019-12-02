@@ -12,6 +12,7 @@
            :read-value
            :write-value
            :type-size
+           #+sbcl :open-mmap
            :*in-progress-objects*
            :parent-of-type
            :immediate-parent
