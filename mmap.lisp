@@ -12,7 +12,7 @@
                  (:io (logior sb-posix:prot-read sb-posix:prot-write))))
          (flags (ecase direction
                   (:input sb-posix:map-private)
-                  ((:output :io)t sb-posix:map-shared)))
+                  ((:output :io) sb-posix:map-shared)))
          (address (sb-posix:mmap nil (file-length fd) prot flags fd 0)))
     (make-instance 'mmap-stream :fd fd :address address)))
 
@@ -92,4 +92,4 @@
 (make-read-write-value :s64 sb-sys:signed-sap-ref-64 8)
 
 (make-read-write-value :float32 sb-sys:sap-ref-single 4)
-(make-read-write-value :float64 sb-sys:sap-ref-double 4)
+(make-read-write-value :float64 sb-sys:sap-ref-double 8)
