@@ -29,18 +29,18 @@
     (sb-posix:munmap (mmap-stream-address stream) (file-length fd))
     (close fd :abort abort)))
 
-(defmethod stream-file-position ((stream mmap-stream) &optional position)
+(defmethod sb-gray:stream-file-position ((stream mmap-stream) &optional position)
   (with-accessors ((offset mmap-stream-offset)) stream
     (if position
         (setf offset position)
         offset)))
 
-(defmethod stream-read-byte ((stream mmap-stream))
+(defmethod sb-gray:stream-read-byte ((stream mmap-stream))
   (prog1
       (sb-sys:sap-ref-8 (mmap-stream-address stream) (mmap-stream-offset stream))
     (incf (mmap-stream-offset stream))))
 
-(defmethod stream-read-sequence ((stream mmap-stream)
+(defmethod sb-gray:stream-read-sequence ((stream mmap-stream)
                                  (seq sequence)
                                  &optional (start 0) (end nil))
   (with-accessors ((address mmap-stream-address)
@@ -52,7 +52,7 @@
           finally (incf offset n)
                   (return n))))
 
-(defmethod stream-write-sequence ((stream mmap-stream)
+(defmethod sb-gray:stream-write-sequence ((stream mmap-stream)
                                   (seq sequence)
                                   &optional (start 0) (end nil))
   (with-accessors ((address mmap-stream-address)
