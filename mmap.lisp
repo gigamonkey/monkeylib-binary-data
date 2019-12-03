@@ -93,3 +93,9 @@
 
 (make-read-write-value :float32 sb-sys:sap-ref-single 4)
 (make-read-write-value :float64 sb-sys:sap-ref-double 8)
+
+;; Vectors
+(defmethod read-value ((vector (eql :vector)) (stream mmap-stream) &key size type)
+  (loop with arr = (make-array size)
+        for i below size do (setf (aref arr i) (read-value type stream))
+        finally (return arr)))
