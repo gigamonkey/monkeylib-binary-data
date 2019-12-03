@@ -8,8 +8,7 @@
 (defun make-mmap-stream (fd &optional (direction :input))
   (let* ((prot (ecase direction
                  (:input sb-posix:prot-read)
-                 (:output sb-posix:prot-write)
-                 (:io (logior sb-posix:prot-read sb-posix:prot-write))))
+                 ((:output :io) (logior sb-posix:prot-read sb-posix:prot-write))))
          (flags (ecase direction
                   (:input sb-posix:map-private)
                   ((:output :io) sb-posix:map-shared)))
