@@ -5,12 +5,12 @@
 (asdf:defsystem binary-io
   :description "Library for reading and writing binary data."
   :author "Peter Seibel <peter@gigamonkeys.com>"
-  :components
-  ((:file "packages")
-   (:file "binary-data" :depends-on ("packages"))
-   #+sbcl (:file "mmap" :depends-on ("packages" "binary-data"))
-   (:file "common-datatypes" :depends-on ("packages" "binary-data")))
-  :depends-on (alexandria ieee-floats)
+  :serial t
+  :components ((:file "packages")
+               (:file "binary-data")
+               (:file "common-datatypes")
+               #+sbcl (:file "mmap"))
+  :depends-on (alexandria ieee-floats #+sbcl sb-posix)
   :in-order-to ((test-op (test-op :binary-io/test))))
 
 (asdf:defsystem binary-io/test
