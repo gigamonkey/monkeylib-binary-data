@@ -13,6 +13,7 @@
            :write-value
            :type-size
            #+sbcl :open-mmap
+           #+sbcl :mmap-stream-fd
            :*in-progress-objects*
            :parent-of-type
            :immediate-parent
