@@ -93,6 +93,19 @@
 (make-read-write-value :float32 sb-sys:sap-ref-single 4)
 (make-read-write-value :float64 sb-sys:sap-ref-double 8)
 
+;; Redefines write for floats to include casting
+(defmethod write-value ((type (eql :float32)) (stream mmap-stream) value &key)
+  (with-accessors ((address mmap-stream-address)
+                   (offset mmap-stream-offset)) stream
+    (setf (sb-sys:sap-ref-single address offset) (float value 0f0))
+    (incf offset 4)))
+
+(defmethod write-value ((type (eql :float64)) (stream mmap-stream) value &key)
+  (with-accessors ((address mmap-stream-address)
+                   (offset mmap-stream-offset)) stream
+    (setf (sb-sys:sap-ref-double address offset) (float value 0d0))
+    (incf offset 8)))
+
 ;; Vectors
 (defmethod read-value ((vector (eql :vector)) (stream mmap-stream) &key size type)
   (loop with arr = (make-array size)
