@@ -41,12 +41,11 @@
 (defmacro build-signed (signed-type unsigned-type bits)
   (let ((marshall-name (intern (format nil "MARSHALL-~a" signed-type)))
         (unmarshall-name (intern (format nil "UNMARSHALL-~a" signed-type)))
-        (mask (ash 1 (1- bits)))
         (maximum (ash 1 bits)))
     `(progn
        (defun ,unmarshall-name (x)
          (declare (type (unsigned-byte ,bits) x))
-         (+ (- (logand x ,mask)) (logand x (lognot ,mask))))
+         (logior x (- (mask-field (byte 1 ,(1- bits)) x))))
        (defun ,marshall-name (x)
          (declare (type (signed-byte ,bits) x))
          (if (minusp x) (+ x ,maximum) x))
