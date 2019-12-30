@@ -28,3 +28,20 @@
       (let ((*endianness* :big))
         (is (= (read-value :u32 fd) #xdb0f4940))))
     (delete-file name)))
+
+(defun prepare-two (name)
+  (with-open-file (fd name :element-type '(unsigned-byte 8)
+                           :direction :output
+                           :if-exists :supersede
+                           :if-does-not-exist :create)
+    (write-value :u32 fd #xfffefdfc)))
+
+(test two-complement
+  (let ((name (format nil "/tmp/~x" (random #xffffff))))
+    (prepare-two name)
+    (with-open-file (fd name :element-type '(unsigned-byte 8))
+      (is (= (read-value :s8 fd) -4))
+      (is (= (read-value :s8 fd) -3))
+      (is (= (read-value :s8 fd) -2))
+      (is (= (read-value :s8 fd) -1)))
+    (delete-file name)))
