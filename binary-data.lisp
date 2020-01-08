@@ -12,7 +12,7 @@
   (:documentation "Read a value of the given type from the stream."))
 
 (defgeneric write-value (type stream value &key)
-  (:documentation "Write a value as the given type to the stream."))
+  (:documentation "Write a value of the given type to the stream."))
 
 (defgeneric type-size (type &key)
   (:documentation "Returns the octet size of a type."))
