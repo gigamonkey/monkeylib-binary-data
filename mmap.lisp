@@ -65,7 +65,7 @@
 
 ;;; methods for some common datatypes
 
-(defmacro make-read-write-value (type-name accessor delta)
+(defmacro make-read-write-value (type-name accessor)
   (with-gensyms (type stream value)
     `(progn
        (defmethod read-value ((,type (eql ,type-name)) (,stream mmap-stream) &key)
@@ -73,25 +73,25 @@
                           (offset mmap-stream-offset)) ,stream
            (prog1
                (,accessor address offset)
-             (incf offset ,delta))))
+             (incf offset (type-size ,type-name)))))
        (defmethod write-value ((,type (eql ,type-name)) (,stream mmap-stream) ,value &key)
          (with-accessors ((address mmap-stream-address)
                           (offset mmap-stream-offset)) ,stream
            (setf (,accessor address offset) ,value)
-           (incf offset ,delta))))))
+           (incf offset (type-size ,type-name)))))))
 
-(make-read-write-value :u8 sb-sys:sap-ref-8 1)
-(make-read-write-value :u16 sb-sys:sap-ref-16 2)
-(make-read-write-value :u32 sb-sys:sap-ref-32 4)
-(make-read-write-value :u64 sb-sys:sap-ref-64 8)
+(make-read-write-value :u8 sb-sys:sap-ref-8)
+(make-read-write-value :u16 sb-sys:sap-ref-16)
+(make-read-write-value :u32 sb-sys:sap-ref-32)
+(make-read-write-value :u64 sb-sys:sap-ref-64)
 
-(make-read-write-value :s8 sb-sys:signed-sap-ref-8 1)
-(make-read-write-value :s16 sb-sys:signed-sap-ref-16 2)
-(make-read-write-value :s32 sb-sys:signed-sap-ref-32 4)
-(make-read-write-value :s64 sb-sys:signed-sap-ref-64 8)
+(make-read-write-value :s8 sb-sys:signed-sap-ref-8)
+(make-read-write-value :s16 sb-sys:signed-sap-ref-16)
+(make-read-write-value :s32 sb-sys:signed-sap-ref-32)
+(make-read-write-value :s64 sb-sys:signed-sap-ref-64)
 
-(make-read-write-value :float32 sb-sys:sap-ref-single 4)
-(make-read-write-value :float64 sb-sys:sap-ref-double 8)
+(make-read-write-value :float32 sb-sys:sap-ref-single)
+(make-read-write-value :float64 sb-sys:sap-ref-double)
 
 ;; Redefines write for floats to include casting
 (defmethod write-value ((type (eql :float32)) (stream mmap-stream) value &key)
