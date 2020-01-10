@@ -14,6 +14,8 @@
            :type-size
            #+sbcl :open-mmap
            #+sbcl :mmap-stream-fd
+           #+sbcl :read-value-at
+           #+sbcl :write-value-at
            :*in-progress-objects*
            :parent-of-type
            :immediate-parent

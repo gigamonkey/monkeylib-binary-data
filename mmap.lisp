@@ -2,8 +2,7 @@
 
 (defclass mmap-stream (sb-gray:fundamental-binary-stream)
   ((fd :initarg :fd :reader mmap-stream-fd)
-   (address :initarg :address :reader mmap-stream-address)
-   (offset :initform 0 :accessor mmap-stream-offset)))
+   (address :initarg :address :reader mmap-stream-address)))
 
 (defun make-mmap-stream (fd &optional (direction :input))
   (let* ((prot (ecase direction
@@ -21,93 +20,57 @@
                            :if-does-not-exist if-does-not-exist)))
     (make-mmap-stream fd direction)))
 
-;;; some gray-stream methods
+(defgeneric read-value-at (type stream offset &key)
+  (:documentation "Read a value of the given TYPE from the STREAM at OFFSET."))
+
+(defgeneric write-value-at (type stream offset value &key)
+  (:documentation "Write a VALUE of the given TYPE to the STREAM at OFFSET."))
+
+;;; gray-stream method for closing
 
 (defmethod close ((stream mmap-stream) &key abort)
   (let ((fd (mmap-stream-fd stream)))
     (sb-posix:munmap (mmap-stream-address stream) (file-length fd))
     (close fd :abort abort)))
 
-(defmethod sb-gray:stream-file-position ((stream mmap-stream) &optional position)
-  (with-accessors ((offset mmap-stream-offset)) stream
-    (if position
-        (setf offset position)
-        offset)))
-
-(defmethod sb-gray:stream-read-byte ((stream mmap-stream))
-  (prog1
-      (sb-sys:sap-ref-8 (mmap-stream-address stream) (mmap-stream-offset stream))
-    (incf (mmap-stream-offset stream))))
-
-(defmethod sb-gray:stream-read-sequence ((stream mmap-stream)
-                                 (seq sequence)
-                                 &optional (start 0) (end nil))
-  (with-accessors ((address mmap-stream-address)
-                   (offset mmap-stream-offset)) stream
-    (loop with n = (- (or end (length seq)) start)
-          for i from start
-          for j below n
-          do (setf (elt seq i) (sb-sys:sap-ref-8 address (+ offset j)))
-          finally (incf offset n)
-                  (return n))))
-
-(defmethod sb-gray:stream-write-sequence ((stream mmap-stream)
-                                  (seq sequence)
-                                  &optional (start 0) (end nil))
-  (with-accessors ((address mmap-stream-address)
-                   (offset mmap-stream-offset)) stream
-    (loop with n = (- (or end (length seq)) start)
-          for i from start
-          for j below n
-          do (setf (sb-sys:sap-ref-8 address (+ offset j)) (elt seq i))
-          finally (incf offset n)
-                  (return seq))))
-
 ;;; methods for some common datatypes
 
-(defmacro make-read-write-value (type-name accessor)
-  (with-gensyms (type stream value)
+(defmacro make-read-write-value-at (type-name accessor)
+  (with-gensyms (type stream value offset)
     `(progn
-       (defmethod read-value ((,type (eql ,type-name)) (,stream mmap-stream) &key)
-         (with-accessors ((address mmap-stream-address)
-                          (offset mmap-stream-offset)) ,stream
-           (prog1
-               (,accessor address offset)
-             (incf offset (type-size ,type-name)))))
-       (defmethod write-value ((,type (eql ,type-name)) (,stream mmap-stream) ,value &key)
-         (with-accessors ((address mmap-stream-address)
-                          (offset mmap-stream-offset)) ,stream
-           (setf (,accessor address offset) ,value)
-           (incf offset (type-size ,type-name)))))))
+       (defmethod read-value-at ((,type (eql ,type-name)) (,stream mmap-stream) ,offset &key)
+         (with-accessors ((address mmap-stream-address)) ,stream
+           (,accessor address ,offset)))
+       (defmethod write-value-at ((,type (eql ,type-name)) (,stream mmap-stream) ,offset ,value &key)
+         (with-accessors ((address mmap-stream-address)) ,stream
+           (setf (,accessor address ,offset) ,value))))))
 
-(make-read-write-value :u8 sb-sys:sap-ref-8)
-(make-read-write-value :u16 sb-sys:sap-ref-16)
-(make-read-write-value :u32 sb-sys:sap-ref-32)
-(make-read-write-value :u64 sb-sys:sap-ref-64)
+(make-read-write-value-at :u8 sb-sys:sap-ref-8)
+(make-read-write-value-at :u16 sb-sys:sap-ref-16)
+(make-read-write-value-at :u32 sb-sys:sap-ref-32)
+(make-read-write-value-at :u64 sb-sys:sap-ref-64)
 
-(make-read-write-value :s8 sb-sys:signed-sap-ref-8)
-(make-read-write-value :s16 sb-sys:signed-sap-ref-16)
-(make-read-write-value :s32 sb-sys:signed-sap-ref-32)
-(make-read-write-value :s64 sb-sys:signed-sap-ref-64)
+(make-read-write-value-at :s8 sb-sys:signed-sap-ref-8)
+(make-read-write-value-at :s16 sb-sys:signed-sap-ref-16)
+(make-read-write-value-at :s32 sb-sys:signed-sap-ref-32)
+(make-read-write-value-at :s64 sb-sys:signed-sap-ref-64)
 
-(make-read-write-value :float32 sb-sys:sap-ref-single)
-(make-read-write-value :float64 sb-sys:sap-ref-double)
+(make-read-write-value-at :float32 sb-sys:sap-ref-single)
+(make-read-write-value-at :float64 sb-sys:sap-ref-double)
 
 ;; Redefines write for floats to include casting
-(defmethod write-value ((type (eql :float32)) (stream mmap-stream) value &key)
-  (with-accessors ((address mmap-stream-address)
-                   (offset mmap-stream-offset)) stream
-    (setf (sb-sys:sap-ref-single address offset) (float value 0f0))
-    (incf offset 4)))
+(defmethod write-value-at ((type (eql :float32)) (stream mmap-stream) offset value &key)
+  (with-accessors ((address mmap-stream-address)) stream
+    (setf (sb-sys:sap-ref-single address offset) (float value 0f0))))
 
-(defmethod write-value ((type (eql :float64)) (stream mmap-stream) value &key)
-  (with-accessors ((address mmap-stream-address)
-                   (offset mmap-stream-offset)) stream
-    (setf (sb-sys:sap-ref-double address offset) (float value 0d0))
-    (incf offset 8)))
+(defmethod write-value-at ((type (eql :float64)) (stream mmap-stream) offset value &key)
+  (with-accessors ((address mmap-stream-address)) stream
+    (setf (sb-sys:sap-ref-double address offset) (float value 0d0))))
 
 ;; Vectors
-(defmethod read-value ((vector (eql :vector)) (stream mmap-stream) &key size type)
+(defmethod read-value-at ((vector (eql :vector)) (stream mmap-stream) offset &key size type)
   (loop with arr = (make-array size)
-        for i below size do (setf (aref arr i) (read-value type stream))
+        with sz = (type-size type)
+        for off = offset then (+ off sz)
+        for i below size do (setf (aref arr i) (read-value-at type stream off))
         finally (return arr)))
