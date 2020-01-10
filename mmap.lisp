@@ -68,9 +68,18 @@
     (setf (sb-sys:sap-ref-double address offset) (float value 0d0))))
 
 ;; Vectors
-(defmethod read-value-at ((vector (eql :vector)) (stream mmap-stream) offset &key size type)
+(defmethod read-value-at ((outer-type (eql :vector)) (stream mmap-stream) offset &key size type)
+  (declare (ignore outer-type))
   (loop with arr = (make-array size)
         with sz = (type-size type)
         for off = offset then (+ off sz)
-        for i below size do (setf (aref arr i) (read-value-at type stream off))
+        for i below size
+        do (setf (aref arr i) (read-value-at type stream off))
         finally (return arr)))
+
+(defmethod write-value-at ((outer-type (eql :vector)) (stream mmap-stream) offset value &key type)
+  (declare (ignore outer-type))
+  (loop with sz = (type-size type)
+        for elt across value
+        for off = offset then (+ off sz)
+        do (write-value-at type stream off elt)))
