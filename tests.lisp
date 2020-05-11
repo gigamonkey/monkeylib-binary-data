@@ -34,7 +34,8 @@
                            :direction :output
                            :if-exists :supersede
                            :if-does-not-exist :create)
-    (write-value :u32 fd #xfffefdfc)))
+    (write-value :u32 fd #xfffefdfc)
+    (write-value :vector fd (vector 65437 65437 65437) :type :u16 :size 3)))
 
 (test two-complement
   (let ((name (format nil "/tmp/~x" (random #xffffff))))
@@ -43,5 +44,7 @@
       (is (= (read-value :s8 fd) -4))
       (is (= (read-value :s8 fd) -3))
       (is (= (read-value :s8 fd) -2))
-      (is (= (read-value :s8 fd) -1)))
+      (is (= (read-value :s8 fd) -1))
+      (is (equalp (read-value :vector fd :type :s16 :size 3)
+                  (vector -99 -99 -99))))
     (delete-file name)))
