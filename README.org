@@ -51,3 +51,14 @@ It also contains the following optionals enhancements.
 
 (tag (make-instance 'foo-header)) ;; -> "FOO"
 #+END_SRC
+
+** a word of warning
+   binary-io is useful if you have some "complex" data structures that
+   will be easily mapped by some =define-binary-class=. But if you
+   have binary data that are mostly arrays of the same type, you'd
+   better use =read-sequence= directly (with the correct
+   =element-type= on the stream).
+
+   I have made some measurement on SBCL and a =(binary-io:read-value
+   :vector)= is about 3 times slower than an equivalent
+   =(read-sequence)=.
