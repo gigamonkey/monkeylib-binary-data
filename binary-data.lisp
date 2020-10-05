@@ -2,7 +2,7 @@
 ;; Copyright (c) 2005, Gigamonkeys Consulting All rights reserved.
 ;;
 
-(in-package :com.gigamonkeys.binary-data)
+(in-package :binary-io)
 
 (defvar *in-progress-objects* nil)
 
@@ -12,7 +12,10 @@
   (:documentation "Read a value of the given type from the stream."))
 
 (defgeneric write-value (type stream value &key)
-  (:documentation "Write a value as the given type to the stream."))
+  (:documentation "Write a value of the given type to the stream."))
+
+(defgeneric type-size (type &key)
+  (:documentation "Returns the octet size of a type."))
 
 (defgeneric read-object (object stream)
   (:method-combination progn :most-specific-last)
@@ -21,6 +24,12 @@
 (defgeneric write-object (object stream)
   (:method-combination progn :most-specific-last)
   (:documentation "Write out the slots of object to the stream."))
+
+(defgeneric object-size (object)
+  (:method-combination +)
+  (:documentation "Returns the octet size of an object."))
+
+;;; Define binary-type's interfaces for binary-class
 
 (defmethod read-value ((type symbol) stream &key)
   (let ((object (make-instance type)))
@@ -31,64 +40,117 @@
   (assert (typep value type))
   (write-object value stream))
 
+(defmethod type-size (object &key)
+  "Defaults to low level object size."
+  (object-size object))
+
+(defmethod type-size ((type symbol) &key)
+  (object-size (make-instance type)))
 
 ;;; Binary types
 
 (defmacro define-binary-type (name (&rest args) &body spec)
   (with-gensyms (type stream value)
-  `(eval-when (:compile-toplevel :load-toplevel :execute)
-    (defmethod read-value ((,type (eql ',name)) ,stream &key ,@args)
-      (declare (ignorable ,@args))
-      ,(type-reader-body spec stream))
-    (defmethod write-value ((,type (eql ',name)) ,stream ,value &key ,@args)
-      (declare (ignorable ,@args))
-      ,(type-writer-body spec stream value)))))
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
+       (defmethod read-value ((,type (eql ',name)) ,stream &key ,@args)
+         (declare (ignorable ,@args))
+         ,(type-reader-body name spec stream))
+       (defmethod write-value ((,type (eql ',name)) ,stream ,value &key ,@args)
+         (declare (ignorable ,@args))
+         ,(type-writer-body name spec stream value))
+       (defmethod type-size ((,type (eql ',name)) &key ,@args)
+         (declare (ignorable ,@args))
+         ,(type-size-body name spec)))))
 
-(defun type-reader-body (spec stream)
-  (ecase (length spec)
-    (1 (destructuring-bind (type &rest args) (mklist (first spec))
-         `(read-value ',type ,stream ,@args)))
-    (2 (destructuring-bind ((in) &body body)
-           (cdr (or (assoc :reader spec)
-                    (error "No reader found in ~s" spec)))
-         `(let ((,in ,stream)) ,@body)))))
+(defun rw-alistp (alist)
+  "Is alist a ((:reader...) (:writer...) (:size...)) kind of alist."
+  (and (listp alist)
+       (every #'consp alist)
+       (or (assoc :reader alist)
+           (assoc :writer alist)
+           (assoc :size alist))))
 
-(defun type-writer-body (spec stream value)
-  (ecase (length spec)
-    (1 (destructuring-bind (type &rest args) (mklist (first spec))
-         `(write-value ',type ,stream ,value ,@args)))
-    (2 (destructuring-bind ((out v) &body body)
-           (cdr (or (assoc :writer spec)
-                    (error "No :writer found in ~s" spec)))
-         `(let ((,out ,stream) (,v ,value)) ,@body)))))
+(defun type-reader-body (name spec stream)
+  (if (rw-alistp spec)
+      (let ((reader-spec (assoc :reader spec)))
+        (if reader-spec
+            (destructuring-bind ((in) &body body) (cdr reader-spec)
+              `(let ((,in ,stream)) ,@body))
+            `(error "No reader defined for type ~s" ',name)))
+      (destructuring-bind (type &rest args) (mklist (first spec))
+        `(read-value ',type ,stream ,@args))))
+
+(defun type-writer-body (name spec stream value)
+  (if (rw-alistp spec)
+      (let ((writer-spec (assoc :writer spec)))
+        (if writer-spec
+            (destructuring-bind ((out v) &body body) (cdr writer-spec)
+              `(let ((,out ,stream) (,v ,value)) ,@body))
+            `(error "No writer defined for type ~s" ',name)))
+      (destructuring-bind (type &rest args) (mklist (first spec))
+        `(write-value ',type ,stream ,value ,@args))))
+
+(defun type-size-body (name spec)
+  (if (rw-alistp spec)
+      (let ((size-spec (assoc :size spec)))
+        (if size-spec
+            `(progn ,@(cddr size-spec))
+            `(error "No size defined for type ~s" ',name)))
+      (destructuring-bind (type &rest args) (mklist (first spec))
+        `(type-size ',type ,@args))))
 
 ;;; Enumerations
-
-(defmacro define-enumeration (name (type) &rest mapping)
-  (let ((mapping (normalize-mapping mapping)))
-    (with-gensyms (in out value)
-      `(define-binary-type ,name ()
-	 (:reader (,in)
-		  (let ((,value (read-value ',type ,in)))
-		    (case ,value
-		      ,@(loop for (symbol number) in mapping collect `(,number ',symbol))
-		      (otherwise (error "No ~a for value: ~a" ',name ,value)))))
-	 (:writer (,out ,value)
-		  (write-value ',type ,out
-			       (case ,value
-				 ,@(loop for (symbol number) in mapping collect `(,symbol ,number))
-				 (otherwise (error "~a not a legal ~a" ,value ',name)))))))))
 
 (defun normalize-mapping (mapping)
   (loop with number = 0
      for entry in mapping collect
        (typecase entry
-	 (symbol
-	  (prog1 (list entry number) (incf number)))
-	 (cons
-	  (let ((actual-number (or (second entry) number)))
-	    (prog1 (list (first entry) actual-number)
-	      (setf number (1+ actual-number))))))))
+         (symbol
+          (prog1 (list entry number) (incf number)))
+         (cons
+          (let ((actual-number (or (second entry) number)))
+            (prog1 (list (first entry) actual-number)
+              (setf number (1+ actual-number))))))))
+
+(defmacro define-enumeration (name (type) &rest mapping)
+  (let ((mapping (normalize-mapping mapping)))
+    (alexandria:with-gensyms (in out value)
+      `(define-binary-type ,name ()
+         (:reader (,in)
+                  (let ((,value (read-value ',type ,in)))
+                    (case ,value
+                      ,@(loop for (symbol number) in mapping collect `(,number ',symbol))
+                      (otherwise (error "No ~a for value: ~a" ',name ,value)))))
+         (:writer (,out ,value)
+                  (write-value ',type ,out
+                               (case ,value
+                                 ,@(loop for (symbol number) in mapping collect `(,symbol ,number))
+                                 (otherwise (error "~a not a legal ~a" ,value ',name)))))
+         (:size () (type-size ',type))))))
+
+;;; Bitfields
+;;;
+;;; Here is a bitfield stored in an unsigned 16bit value where the bit
+;;; 0 means 'a and bit 1 means 'b:
+;;;
+;;; (define-bitfield foo (u2)
+;;;   ((a 0) (b 1)))
+(defmacro define-bitfield (name (type) &rest mapping)
+  (alexandria:with-gensyms (in out value symbol bit encval)
+    `(define-binary-type ,name ()
+       (:reader (,in)
+                (let ((,value (read-value ',type ,in)))
+                  (loop for (,symbol ,bit) in ',@mapping
+                        when (ldb-test (byte 1 ,bit) ,value)
+                          collect ,symbol)))
+       (:writer (,out ,value)
+                (write-value ',type ,out
+                             (loop with ,encval = 0
+                                   for (,symbol ,bit) in ',@mapping
+                                   do (when (member ,symbol ,value)
+                                        (setf (ldb (byte 1 ,bit) ,encval) 1))
+                                   finally (return ,encval))))
+       (:size () (type-size ',type)))))
 
 ;;; Binary classes
 
@@ -98,16 +160,20 @@
        (eval-when (:compile-toplevel :load-toplevel :execute)
          (setf (get ',name 'slots) ',(mapcar #'first slots))
          (setf (get ',name 'superclasses) ',superclasses))
-       
+
        (defclass ,name ,superclasses
          ,(mapcar #'slot->defclass-slot slots))
-       
+
        ,read-method
-       
+
        (defmethod write-object progn ((,objectvar ,name) ,streamvar)
          (declare (ignorable ,streamvar))
          (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
-           ,@(mapcar #'(lambda (x) (slot->write-value x streamvar)) slots))))))
+           ,@(mapcar #'(lambda (x) (slot->write-value x streamvar)) slots)))
+
+       (defmethod object-size + ((,objectvar ,name))
+         (with-slots ,(new-class-all-slots slots superclasses) ,objectvar
+           (+ ,@(mapcar #'(lambda (x) (slot->object-size x)) slots)))))))
 
 (defmacro define-binary-class (name (&rest superclasses) slots)
   (with-gensyms (objectvar streamvar)
@@ -141,7 +207,7 @@
       (defmethod read-value ((,typevar (eql ',name)) ,streamvar &key)
         (let* ,(mapcar #'(lambda (x) (slot->binding x streamvar)) slots)
           (let ((,objectvar
-                 (make-instance 
+                 (make-instance
                   ,@(or (cdr (assoc :dispatch options))
                         (error "No :dispatch form found in ~s" whole))
                   ,@(mapcan #'slot->keyword-arg slots))))
@@ -156,8 +222,11 @@
 (defun mklist (x) (if (listp x) x (list x)))
 
 (defun slot->defclass-slot (spec)
-  (let ((name (first spec)))
-    `(,name :initarg ,(as-keyword name) :accessor ,name)))
+  (let ((name (first spec))
+        (initform (third spec)))
+    (if initform
+        `(,name :initarg ,(as-keyword name) :initform ,initform :accessor ,name)
+        `(,name :initarg ,(as-keyword name) :accessor ,name))))
 
 (defun slot->read-value (spec stream)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
@@ -166,6 +235,11 @@
 (defun slot->write-value (spec stream)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
     `(write-value ',type ,stream ,name ,@args)))
+
+(defun slot->object-size (spec)
+  (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
+    (declare (ignore name))
+    `(type-size ',type ,@args)))
 
 (defun slot->binding (spec stream)
   (destructuring-bind (name (type &rest args)) (normalize-slot-spec spec)
@@ -213,4 +287,3 @@ and superclasses have been saved."
   (declare (ignore stream))
   (let ((*in-progress-objects* (cons object *in-progress-objects*)))
     (call-next-method)))
-

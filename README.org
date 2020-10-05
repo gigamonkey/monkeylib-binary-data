@@ -1,0 +1,64 @@
+* binary-io
+
+This library should be a drop in replacement for monkeylib-binary-data
+described in Peter Seibel's excellent book: you should start [[http://gigamonkeys.com/book/practical-parsing-binary-files.html][here]].
+
+It also contains the following optionals enhancements.
+** definition/access of octet size of objects
+   When defining a new binary-type, in addition to =:reader= and
+   =:writer= definition, you can set a =:size= to calculate the octet
+   size of this new type. You can then access this size with
+   =type-size=
+
+   Here is an example from =common-datatypes.lisp= (that comes with
+   =binary-io= ;-)
+#+BEGIN_SRC lisp
+;;; Unsigned integers
+(define-binary-type unsigned-integer (bits)
+  (:reader (fd)
+	   (assert (equal (stream-element-type fd) '(unsigned-byte 8)))
+	   (let ((byte-indexes (byte-indexes bits *endianness*))
+		 (value 0))
+	     (dolist (i byte-indexes value)
+	       (setf (ldb (byte 8 i) value) (read-byte fd)))))
+  (:writer (fd value)
+	   (assert (equal (stream-element-type fd) '(unsigned-byte 8)))
+	   (let ((byte-indexes (byte-indexes bits *endianness*)))
+	     (dolist (i byte-indexes)
+	       (write-byte (ldb (byte 8 i) value) fd))))
+  (:size () (ceiling bits 8)))
+
+(define-binary-type u2 () (unsigned-integer :bits 16))
+
+(type-size 'u2) ;; -> 2
+#+END_SRC
+
+   =type-size= method also works for binary class.
+#+BEGIN_SRC lisp
+(define-binary-class test-size ()
+  ((a u2)
+   (b u2)))
+
+(type-size 'test-size) ;; -> 4
+#+END_SRC
+** optional initform for slots
+   You can precise an optional initform for a slot as a third value in
+   the slot spec of a binary class definition:
+#+BEGIN_SRC lisp
+(define-binary-class foo-header ()
+  ((tag (8bit-string :length 4 :terminator #\Nul) "FOO")
+   (counter u2 0)))
+
+(tag (make-instance 'foo-header)) ;; -> "FOO"
+#+END_SRC
+
+** a word of warning
+   binary-io is useful if you have some "complex" data structures that
+   will be easily mapped by some =define-binary-class=. But if you
+   have binary data that are mostly arrays of the same type, you'd
+   better use =read-sequence= directly (with the correct
+   =element-type= on the stream).
+
+   I have made some measurement on SBCL and a =(binary-io:read-value
+   :vector)= is about 3 times slower than an equivalent
+   =(read-sequence)=.
