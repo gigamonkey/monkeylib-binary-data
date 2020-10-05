@@ -94,7 +94,7 @@ nothing has to be done (this should be checked by the caller)."
 
 ;;; Vectors
 (defun pack (octets n)
-  "Make a vector of n-octet integers out of an octets vector."
+  "Make a vector of N-octet integers out of an OCTETS vector."
   (if (= n 1)
       octets
       (let* ((m (ceiling (length octets) n))
@@ -107,7 +107,7 @@ nothing has to be done (this should be checked by the caller)."
         result)))
 
 (defun unpack (vector n)
-  "Inverse of pack."
+  "Inverse of PACK."
   (if (= n 1)
       vector
       (let ((result (make-array (* n (length vector)) :element-type '(unsigned-byte 8)))

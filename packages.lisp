@@ -29,6 +29,8 @@
    :integer
    :marshaller
    :unmarshaller
+   :pack
+   :unpack
    :generic-string
    :generic-terminated-string
    :iso-8859-1-char
