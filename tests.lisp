@@ -48,3 +48,11 @@
       (is (equalp (read-value :vector fd :type :s16 :size 3)
                   (vector -99 -99 -99))))
     (delete-file name)))
+
+(test pack/unpack
+  (let ((v1 (vector 2 3 4 6 8 9 10 12))
+        (v2 (vector 1976 1977 2002 2011)))
+    (is (equalp v1 (unpack (pack v1 2) 2)))
+    (is (equalp v1 (unpack (pack v1 4) 4)))
+    (is (equalp v1 (unpack (pack v1 8) 8)))
+    (is (equalp v2 (pack (unpack v2 2) 2)))))
