@@ -5,15 +5,16 @@
 
 (defun prepare-file (name)
   (with-open-file (fd name :element-type '(unsigned-byte 8)
-                             :direction :output
-                             :if-exists :supersede
-                             :if-does-not-exist :create)
+                           :direction :output
+                           :if-exists :supersede
+                           :if-does-not-exist :create)
     (write-value :u16 fd #xdead)
     (write-value :vector fd (vector 1078530011 1078530011) :type :u32 :size 2)
     (write-value :u64 fd 4614256656552045848)))
 
 (test endianness
-  (let ((name (format nil "/tmp/~x" (random #xffffff))))
+  (let ((name (format nil "/tmp/~x" (random #xffffff)))
+        (*endianness* :little))
     (prepare-file name)
     (with-open-file (fd name :element-type '(unsigned-byte 8))
       (is (= (read-value :u16 fd) #xdead))
@@ -38,7 +39,8 @@
     (write-value :vector fd (vector 65437 65437 65437) :type :u16 :size 3)))
 
 (test two-complement
-  (let ((name (format nil "/tmp/~x" (random #xffffff))))
+  (let ((name (format nil "/tmp/~x" (random #xffffff)))
+        (*endianness* :little))
     (prepare-two name)
     (with-open-file (fd name :element-type '(unsigned-byte 8))
       (is (= (read-value :s8 fd) -4))
@@ -50,7 +52,8 @@
     (delete-file name)))
 
 (test pack/unpack
-  (let ((v1 (vector 2 3 4 6 8 9 10 12))
+  (let ((*endianness* :little)
+        (v1 (vector 2 3 4 6 8 9 10 12))
         (v2 (vector 1976 1977 2002 2011)))
     (is (equalp v1 (unpack (pack v1 2) 2)))
     (is (equalp v1 (unpack (pack v1 4) 4)))
