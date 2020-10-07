@@ -58,4 +58,6 @@
     (is (equalp v1 (unpack (pack v1 2) 2)))
     (is (equalp v1 (unpack (pack v1 4) 4)))
     (is (equalp v1 (unpack (pack v1 8) 8)))
-    (is (equalp v2 (pack (unpack v2 2) 2)))))
+    (is (equalp v2 (pack (unpack v2 2) 2)))
+    (is (equalp (vector 3 0 3) (pack #*110011 2 1)))
+    (is (loop for i across (unpack (vector #xff) 8 1) always (= i 1)))))

@@ -11,8 +11,8 @@
   "Sets unsigned intergers read/write endianness. Should be one of
   :little or :big.")
 
-(defun byte-indexes (bits endianness)
-  (let ((byte-indexes (loop for i below bits by 8 collect i)))
+(defun byte-indexes (bits endianness &optional (byte-size 8))
+  (let ((byte-indexes (loop for i below bits by byte-size collect i)))
     (unless (eq endianness :little)
       (setf byte-indexes (nreverse byte-indexes)))
     byte-indexes))
@@ -93,29 +93,32 @@ nothing has to be done (this should be checked by the caller)."
   (:size () (type-size :u64)))
 
 ;;; Vectors
-(defun pack (octets n)
-  "Make a vector of N-octet integers out of an OCTETS vector."
+(defun pack (bytes n &optional (byte-size 8))
+  "Make a vector of N-byte integers out of a BYTES vector. Defaults to
+octet as byte."
   (if (= n 1)
-      octets
-      (let* ((m (ceiling (length octets) n))
+      bytes
+      (let* ((m (ceiling (length bytes) n))
              (result (make-array m))
-             (byte-indexes (byte-indexes (* n 8) *endianness*)))
+             (byte-indexes (byte-indexes (* n byte-size) *endianness* byte-size)))
         (loop for i below m
               do (loop for bi in byte-indexes
                        for j from 0
-                       do (setf (ldb (byte 8 bi) (aref result i)) (aref octets (+ (* i n) j)))))
+                       do (setf (ldb (byte byte-size bi) (aref result i))
+                                  (aref bytes (+ (* i n) j)))))
         result)))
 
-(defun unpack (vector n)
-  "Inverse of PACK."
+(defun unpack (vector n &optional (byte-size 8))
+  "Opposite of PACK."
   (if (= n 1)
       vector
-      (let ((result (make-array (* n (length vector)) :element-type '(unsigned-byte 8)))
-            (byte-indexes (byte-indexes (* n 8) *endianness*)))
+      (let* ((result (make-array (* n (length vector))
+                                 :element-type `(unsigned-byte ,byte-size)))
+             (byte-indexes (byte-indexes (* n byte-size) *endianness* byte-size)))
         (loop with i = 0
               for e across vector
               do (dolist (bi byte-indexes)
-                   (setf (aref result i) (ldb (byte 8 bi) e))
+                   (setf (aref result i) (ldb (byte byte-size bi) e))
                    (incf i)))
         result)))
 
